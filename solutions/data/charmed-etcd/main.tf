@@ -50,10 +50,12 @@ module "cos" {
 
 
 module "etcd" {
-  source             = "git::https://github.com/canonical/charmed-etcd-operator//terraform/product"
-  etcd               = var.etcd
-  grafana-agent      = var.grafana-agent
-  backups-integrator = var.backups-integrator
+  source                   = "git::https://github.com/canonical/charmed-etcd-operator//terraform/product"
+  etcd                     = var.etcd
+  grafana-agent            = var.grafana-agent
+  backups-integrator       = var.backups-integrator
+  data-integrator          = var.data-integrator
+  self-signed-certificates = var.self-signed-certificates
 
   depends_on = [
     juju_model.vm_model,

@@ -2,7 +2,7 @@
 variable "cos" {
   description = "Configuration for the Charmed Observability Stack (COS)"
   type = object({
-    model  = optional(string, "k8s")
+    model   = optional(string, "k8s")
     channel = optional(string, "2/edge")
     use_tls = optional(bool, false)
   })
@@ -67,4 +67,43 @@ variable "grafana-agent" {
   default = {
     channel = "1/stable"
   }
+}
+
+
+variable "self-signed-certificates" {
+  description = "self-signed-certificates app definition"
+  type = object({
+    channel     = optional(string, "1/stable")
+    revision    = optional(string, null)
+    base        = optional(string, "ubuntu@24.04")
+    constraints = optional(string, "arch=amd64")
+    machines    = optional(set(string), [])
+    config      = optional(map(string), { "ca-common-name" : "CA" })
+  })
+  default = {}
+
+  validation {
+    condition     = length(var.self-signed-certificates.machines) <= 1
+    error_message = "Machine count should be at most 1"
+  }
+}
+
+
+variable "data-integrator" {
+  description = "Configuration for the data-integrator"
+  type = object({
+    config      = optional(map(string), { "prefix-name" : "/test/" })
+    channel     = optional(string, "latest/edge")
+    base        = optional(string, "ubuntu@24.04")
+    revision    = optional(string, null)
+    constraints = optional(string, "arch=amd64")
+    machines    = optional(set(string), [])
+  })
+
+  validation {
+    condition     = length(var.data-integrator.machines) <= 1
+    error_message = "Machine count should be at most 1"
+  }
+
+  default = {}
 }
