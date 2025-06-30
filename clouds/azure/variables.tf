@@ -24,7 +24,12 @@ variable "PROVISION_BASTION" {
 variable "SSH_PUBLIC_KEY" {
   description = "The public key for SSH access"
   type        = string
-  default     = "./ssh_keys/id_ed25519.pub" # Path to the ssh public key to be added to the bastion
+  default     = null
+  # Needs to be set if PROVISION_BASTION is true
+  validation {
+    condition     = var.PROVISION_BASTION == false || (var.PROVISION_BASTION == true && var.SSH_PUBLIC_KEY != null)
+    error_message = "SSH_PUBLIC_KEY must be set if PROVISION_BASTION is true"
+  }
 }
 
 variable "SOURCE_ADDRESS_PREFIXES" {
