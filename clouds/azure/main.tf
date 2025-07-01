@@ -285,6 +285,11 @@ resource "azurerm_role_assignment" "bastion_role_assignment" {
   role_definition_name = azurerm_role_definition.bastion_role[count.index].name
   principal_id         = azurerm_user_assigned_identity.bastion_identity[count.index].principal_id
   principal_type       = "ServicePrincipal"
+
+  depends_on = [
+    azurerm_role_definition.bastion_role,
+    azurerm_user_assigned_identity.bastion_identity,
+  ]
 }
 
 # Create a public IP address for the bastion host
