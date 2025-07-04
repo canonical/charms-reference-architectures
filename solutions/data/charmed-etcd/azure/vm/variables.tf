@@ -107,3 +107,13 @@ variable "data-integrator" {
 
   default = {}
 }
+
+variable "remote-state" {
+  description = "Configuration for the remote state"
+  type = object({
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+    key                  = string
+  })
+}

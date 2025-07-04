@@ -1,12 +1,7 @@
 
 data "terraform_remote_state" "infra_state" {
   backend = "azurerm"
-  config = {
-    resource_group_name  = "tfstate-rg"
-    storage_account_name = "tfstate0fcsksld"
-    container_name       = "tfstate"
-    key                  = "infra.terraform.tfstate"
-  }
+  config  = var.remote-state
 }
 
 resource "juju_model" "vm_model" {
@@ -20,20 +15,11 @@ resource "juju_model" "vm_model" {
   }
 }
 
-# workaround because you cannot create a k8s model with a service-principal-secret auth
-resource "null_resource" "create_k8s_model" {
-
-  triggers = {
-    model-name = var.cos.model
-  }
-
-  provisioner "local-exec" {
-    command = "juju add-model ${var.cos.model} k8s"
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = "juju remove-model --destroy-storage --force --no-wait --no-prompt ${self.triggers.model-name}"
+resource "juju_model" "k8s_model" {
+  name       = var.cos.model
+  credential = "k8s"
+  cloud {
+    name = "k8s"
   }
 }
 
@@ -44,7 +30,7 @@ module "cos" {
   use_tls = var.cos.use_tls
 
   depends_on = [
-    null_resource.create_k8s_model,
+    juju_model.k8s_model,
   ]
 }
 
