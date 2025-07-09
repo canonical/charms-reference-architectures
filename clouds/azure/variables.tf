@@ -34,8 +34,8 @@ variable "SSH_PUBLIC_KEY" {
   }
 }
 
-variable "SOURCE_ADDRESS_PREFIXES" {
-  description = "List of source address prefixes for the network security group rules"
+variable "SOURCE_ADDRESSES" {
+  description = "A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) or service tags (e.g., `["VirtualNetwork", "AzureLoadBalancer"]`) allowed for inbound NSG rules"
   type        = list(string)
   default     = null
 }

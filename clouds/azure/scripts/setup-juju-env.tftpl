@@ -79,3 +79,10 @@ else
   echo "Setting up Kubernetes on the Juju controller..."
   sudo -u ubuntu bash -c "juju add-k8s k8s --client --controller az"
 fi
+
+echo "Juju environment setup complete."
+echo "Cleaning up temporary files..."
+rm -f /home/ubuntu/credentials.yaml
+echo "Temporary files cleaned up."
+echo "Juju environment setup script completed successfully."
+# End of script

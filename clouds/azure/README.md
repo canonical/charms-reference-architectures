@@ -29,7 +29,7 @@ The module exposes the following configurable input variables.
 | `AZURE_SUBSCRIPTION_ID`   | `string`       | Your Azure subscription ID where the resources will be created.                                                                                               | Yes                                      | `n/a`           |
 | `PROVISION_BASTION`       | `bool`         | Set to `true` to provision a dedicated bastion host for secure access.                                                                                        | No                                       | `true`          |
 | `SSH_PUBLIC_KEY`          | `string`       | The SSH public key content (e.g., `ssh-rsa AAAAB3NzaC...`) used for authenticating to the bastion host.                                                       | **Yes if `PROVISION_BASTION` is `true`** | `null`          |
-| `SOURCE_ADDRESS_PREFIXES` | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) or service tags (e.g., `["VirtualNetwork", "AzureLoadBalancer"]`) allowed for inbound NSG rules. | No                                       | `null`          |
+| `SOURCE_ADDRESSES` | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) or service tags (e.g., `["VirtualNetwork", "AzureLoadBalancer"]`) allowed for inbound NSG rules. | No                                       | `null`          |
 | `AKS_CLUSTER_NAME`        | `string`       | The name of the Azure Kubernetes Service (AKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an AKS cluster.               | No                                       | `"aks-cluster"` |
 | `SETUP_LOCAL_HOST`         | `bool`         | Whether to set up the host machine with Juju and deploy the Juju controller. This typically involves running a remote-exec provisioner.                       | No                                       | `false`         |
 
@@ -69,9 +69,8 @@ Ensure you have updated the `backend` section within your `versions.tf` to refle
 
 Example `versions.tf` snippet for backend configuration:
 
-```terraform
-terraform {
-  required_providers {
+  ...
+
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~>4.0"
@@ -102,9 +101,14 @@ pushd clouds/azure
 
 tf init 
 tf plan -out terraform.out \
-    -var="..." \
-    -var="..." \  # optional
-    ....
+    -var="RESOURCE_GROUP_NAME=myResourceGroup" \  # optional, defaults to "main-rg"
+    -var="REGION=eastus" \  # optional, defaults to "eastus
+    -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId" \  # required, your Azure subscription ID
+    -var="PROVISION_BASTION=true" \  # optional, defaults to true
+    -var="SSH_PUBLIC_KEY=~/.ssh/id_rsa.pub" \  # required if PROVISION_BASTION is true, your SSH public key
+    -var='SOURCE_ADDRESSES=["123.45.67/32"]' \  # optional, defaults to null
+    -var="AKS_CLUSTER_NAME=myAKSCluster" \  # optional, defaults to "aks-cluster", set to "" if you do not want to provision an AKS cluster
+    -var="SETUP_LOCAL_HOST=true" \  # optional, defaults to false, set to true if you want to set up the local host with Juju and deploy the controller
 tf apply terraform.out
 
 popd
@@ -122,7 +126,12 @@ module "juju_azure_infra" {
 
   azure_subscription_id     = var.azure_subscription_id
   resource_group_name       = var.resource_group_name
-  ...
+  region                    = var.region
+  provision_bastion         = var.provision_bastion
+  ssh_public_key            = var.ssh_public_key
+  source_address_prefixes   = var.source_address_prefixes
+  aks_cluster_name          = var.aks_cluster_name
+  setup_local_host          = var.setup_local_host
 }
 ```
 

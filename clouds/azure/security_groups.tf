@@ -18,7 +18,7 @@ resource "azurerm_network_security_group" "main_nsg" {
     protocol                     = "Tcp"
     source_port_range            = "*"
     destination_port_range       = "22"
-    source_address_prefixes      = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    source_address_prefixes      = var.SOURCE_ADDRESSES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESSES, azurerm_virtual_network.main_vnet.address_space)
     destination_address_prefixes = azurerm_virtual_network.main_vnet.address_space
   }
 
@@ -28,7 +28,7 @@ resource "azurerm_network_security_group" "main_nsg" {
     direction                    = "Inbound"
     access                       = "Allow"
     protocol                     = "Tcp"
-    source_address_prefixes      = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    source_address_prefixes      = var.SOURCE_ADDRESSES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESSES, azurerm_virtual_network.main_vnet.address_space)
     destination_address_prefixes = azurerm_virtual_network.main_vnet.address_space
     source_port_range            = "*"
     destination_port_range       = "17070"
@@ -55,7 +55,7 @@ resource "azurerm_network_security_group" "main_nsg" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "80"
-    source_address_prefixes    = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    source_address_prefixes    = var.SOURCE_ADDRESSES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESSES, azurerm_virtual_network.main_vnet.address_space)
     destination_address_prefix = "*"
   }
 
@@ -67,7 +67,7 @@ resource "azurerm_network_security_group" "main_nsg" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "443"
-    source_address_prefixes    = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    source_address_prefixes    = var.SOURCE_ADDRESSES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESSES, azurerm_virtual_network.main_vnet.address_space)
     destination_address_prefix = "*"
   }
 
