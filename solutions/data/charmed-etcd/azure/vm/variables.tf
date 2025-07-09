@@ -1,3 +1,5 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
 
 variable "cos" {
   description = "Configuration for the Charmed Observability Stack (COS)"

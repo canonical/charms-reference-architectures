@@ -16,7 +16,7 @@ This Terraform module facilitates the deployment of the [etcd charm](https://cha
 Before using this module, ensure you have the following prerequisites in place on your host machine:
 
   * **Terraform**: Version `1.0.0` or higher.
-  * **Juju**: Version `2.9` or higher.
+  * **Juju**: Version `3.6` or higher.
   * **Juju Controller**: A Juju controller must be already set up and accessible from your host machine. This includes:
       * A Juju controller with both VM-based clouds (e.g., AWS, Azure, GCP) and Kubernetes-based clouds (e.g., MicroK8s, Charmed Kubernetes) configured. 
 

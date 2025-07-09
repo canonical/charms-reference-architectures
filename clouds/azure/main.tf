@@ -1,3 +1,6 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 ## ====================================================
 ## Provider Configuration
 ## ====================================================
@@ -11,55 +14,47 @@ provider "azurerm" {
   subscription_id = var.AZURE_SUBSCRIPTION_ID
 }
 
-
 ## ====================================================
 ## Base Resources
 ## ====================================================
-resource "azurerm_resource_group" "main" {
+resource "azurerm_resource_group" "main_rg" {
   name     = var.RESOURCE_GROUP_NAME
   location = var.REGION
-}
-
-locals {
-  aks-cluster-name = var.AKS_CLUSTER_NAME
-  region           = azurerm_resource_group.main.location
 }
 
 
 ## ====================================================
 ## Network infra
 ## ====================================================
-resource "azurerm_virtual_network" "main" {
+resource "azurerm_virtual_network" "main_vnet" {
   name                = "main-vnet"
   address_space       = ["10.0.0.0/8"]
-  location            = local.region
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main_rg.location
+  resource_group_name = azurerm_resource_group.main_rg.name
 }
 
 resource "azurerm_subnet" "controller_subnet" {
   name                 = "controller-subnet"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
+  resource_group_name  = azurerm_resource_group.main_rg.name
+  virtual_network_name = azurerm_virtual_network.main_vnet.name
   address_prefixes     = ["10.1.0.0/16"]
 }
 
 resource "azurerm_subnet" "deployments_subnet" {
   name                 = "deployments-subnet"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
+  resource_group_name  = azurerm_resource_group.main_rg.name
+  virtual_network_name = azurerm_virtual_network.main_vnet.name
   address_prefixes     = ["10.2.0.0/16"]
 }
 
 
 # --- NAT Gateway ---
-
-
 # I. Controller NAT Gateway Setup
 # 1. Create a dedicated Public IP for the NAT Gateway for the controller subnet
 resource "azurerm_public_ip" "controller_nat_gateway_pip" {
   name                = "controller-nat-gateway-public-ip"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main_rg.name
+  location            = azurerm_resource_group.main_rg.location
   allocation_method   = "Static"
   sku                 = "Standard"
 }
@@ -67,8 +62,8 @@ resource "azurerm_public_ip" "controller_nat_gateway_pip" {
 # 2. Create the NAT Gateway resource
 resource "azurerm_nat_gateway" "controller_nat_gateway" {
   name                = "controller-nat-gateway"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main_rg.name
+  location            = azurerm_resource_group.main_rg.location
   sku_name            = "Standard"
 }
 
@@ -91,8 +86,8 @@ resource "azurerm_subnet_nat_gateway_association" "controller_subnet_nat_assoc" 
 # 1. Create a dedicated Public IP for the NAT Gateway for the deployments subnet
 resource "azurerm_public_ip" "deployments_nat_gateway_pip" {
   name                = "deployments-nat-gateway-public-ip"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main_rg.name
+  location            = azurerm_resource_group.main_rg.location
   allocation_method   = "Static"
   sku                 = "Standard"
 }
@@ -100,8 +95,8 @@ resource "azurerm_public_ip" "deployments_nat_gateway_pip" {
 # 2. Create the NAT Gateway resource
 resource "azurerm_nat_gateway" "deployments_nat_gateway" {
   name                = "deployments-nat-gateway"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main_rg.name
+  location            = azurerm_resource_group.main_rg.location
   sku_name            = "Standard"
 }
 
@@ -127,8 +122,8 @@ resource "azurerm_subnet_nat_gateway_association" "deployments_subnet_nat_assoc"
 
 resource "azurerm_network_security_group" "main_nsg" {
   name                = "main-nsg"
-  location            = local.region
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main_rg.location
+  resource_group_name = azurerm_resource_group.main_rg.name
 
   security_rule {
     name                         = "AllowSSH"
@@ -138,8 +133,8 @@ resource "azurerm_network_security_group" "main_nsg" {
     protocol                     = "Tcp"
     source_port_range            = "*"
     destination_port_range       = "22"
-    source_address_prefixes      = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main.address_space)
-    destination_address_prefixes = azurerm_virtual_network.main.address_space
+    source_address_prefixes      = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    destination_address_prefixes = azurerm_virtual_network.main_vnet.address_space
   }
 
   security_rule {
@@ -148,8 +143,8 @@ resource "azurerm_network_security_group" "main_nsg" {
     direction                    = "Inbound"
     access                       = "Allow"
     protocol                     = "Tcp"
-    source_address_prefixes      = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main.address_space)
-    destination_address_prefixes = azurerm_virtual_network.main.address_space
+    source_address_prefixes      = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    destination_address_prefixes = azurerm_virtual_network.main_vnet.address_space
     source_port_range            = "*"
     destination_port_range       = "17070"
   }
@@ -161,10 +156,34 @@ resource "azurerm_network_security_group" "main_nsg" {
     direction                    = "Inbound"
     access                       = "Allow"
     protocol                     = "Icmp"
-    source_address_prefixes      = azurerm_virtual_network.main.address_space
-    destination_address_prefixes = azurerm_virtual_network.main.address_space
+    source_address_prefixes      = azurerm_virtual_network.main_vnet.address_space
+    destination_address_prefixes = azurerm_virtual_network.main_vnet.address_space
     source_port_range            = "*"
     destination_port_range       = "*"
+  }
+
+  security_rule {
+    name                       = "AllowHTTP"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefixes    = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "AllowHTTPS"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefixes    = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main_vnet.address_space)
+    destination_address_prefix = "*"
   }
 
   security_rule {
@@ -177,18 +196,6 @@ resource "azurerm_network_security_group" "main_nsg" {
     destination_address_prefix = "0.0.0.0/0"
     source_port_range          = "*"
     destination_port_range     = "*"
-  }
-
-  security_rule {
-    name                       = "AllowHTTP"
-    priority                   = 140
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefixes    = var.SOURCE_ADDRESS_PREFIXES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESS_PREFIXES, azurerm_virtual_network.main.address_space)
-    destination_address_prefix = "*"
   }
 
 }
@@ -210,9 +217,9 @@ resource "azurerm_subnet_network_security_group_association" "deployments_subnet
 resource "azurerm_kubernetes_cluster" "aks" {
   # if AKS_CLUSTER_NAME is not set, do not create the AKS cluster
   count               = var.AKS_CLUSTER_NAME != "" ? 1 : 0
-  name                = local.aks-cluster-name
-  location            = local.region
-  resource_group_name = azurerm_resource_group.main.name
+  name                = var.AKS_CLUSTER_NAME
+  location            = azurerm_resource_group.main_rg.location
+  resource_group_name = azurerm_resource_group.main_rg.name
   dns_prefix          = "cos-cluster-dns"
 
   default_node_pool {
@@ -247,8 +254,8 @@ resource "azurerm_user_assigned_identity" "bastion_identity" {
   # if PROVISION_BASTION is true then create the bastion host
   count               = var.PROVISION_BASTION ? 1 : 0
   name                = "bastion-identity"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main_rg.location
+  resource_group_name = azurerm_resource_group.main_rg.name
 }
 
 # create role definition for the managed identity
@@ -256,7 +263,7 @@ resource "azurerm_role_definition" "bastion_role" {
   # if PROVISION_BASTION is true then create the bastion host
   count       = var.PROVISION_BASTION ? 1 : 0
   name        = "BastionRGRole"
-  scope       = azurerm_resource_group.main.id
+  scope       = azurerm_resource_group.main_rg.id
   description = "Role definition for a Juju controller (Resource Group Scope)"
 
   permissions {
@@ -273,7 +280,7 @@ resource "azurerm_role_definition" "bastion_role" {
   # Defines the assignable scopes for this role.
   # This role can only be assigned within the created resource group.
   assignable_scopes = [
-    azurerm_resource_group.main.id,
+    azurerm_resource_group.main_rg.id,
   ]
 }
 
@@ -297,8 +304,8 @@ resource "azurerm_public_ip" "bastion_public_ip" {
   # if PROVISION_BASTION is true then create the bastion host
   count               = var.PROVISION_BASTION ? 1 : 0
   name                = "bastion-public-ip"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main_rg.location
+  resource_group_name = azurerm_resource_group.main_rg.name
   allocation_method   = "Static"   # Static or Dynamic IP allocation
   sku                 = "Standard" # Standard or Basic, Standard is recommended for production
 }
@@ -308,8 +315,8 @@ resource "azurerm_network_interface" "bastion_nic" {
   # if PROVISION_BASTION is true then create the bastion host
   count               = var.PROVISION_BASTION ? 1 : 0
   name                = "bastion-nic"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main_rg.location
+  resource_group_name = azurerm_resource_group.main_rg.name
 
   ip_configuration {
     name                          = "internal"
@@ -323,21 +330,21 @@ resource "azurerm_linux_virtual_machine" "bastion" {
   # if PROVISION_BASTION is true then create the bastion host
   count               = var.PROVISION_BASTION ? 1 : 0
   name                = "bastion"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main_rg.name
+  location            = azurerm_resource_group.main_rg.location
   size                = "Standard_F4s_v2"
   admin_username      = "ubuntu"
   network_interface_ids = [
     azurerm_network_interface.bastion_nic[count.index].id,
   ]
 
-  user_data = base64encode(templatefile("scripts/set_up.tftpl", {
-    rg_name                = azurerm_resource_group.main.name,
+  user_data = base64encode(templatefile("scripts/setup-juju-env.tftpl", {
+    rg_name                = azurerm_resource_group.main_rg.name,
     mi_name                = var.PROVISION_BASTION ? azurerm_user_assigned_identity.bastion_identity[0].name : "",
     subscription_id        = var.AZURE_SUBSCRIPTION_ID,
     region                 = var.REGION,
     kube_config            = var.AKS_CLUSTER_NAME != "" ? azurerm_kubernetes_cluster.aks[0].kube_config_raw : "",
-    vnet_name              = azurerm_virtual_network.main.name,
+    vnet_name              = azurerm_virtual_network.main_vnet.name,
     controller_subnet_name = azurerm_subnet.controller_subnet.name,
     aks_cluster_name       = var.AKS_CLUSTER_NAME != "" ? var.AKS_CLUSTER_NAME : "",
     app_client_id          = var.INITIALIZE_HOST ? azuread_application.juju_app[0].client_id : "",
@@ -374,14 +381,14 @@ resource "azurerm_linux_virtual_machine" "bastion" {
     azurerm_role_assignment.bastion_role_assignment,
     azurerm_network_interface.bastion_nic,
     azurerm_user_assigned_identity.bastion_identity,
-    azurerm_virtual_network.main,
+    azurerm_virtual_network.main_vnet,
     azurerm_subnet.controller_subnet,
   ]
 }
 
 
 # ## ====================================================
-# ## Initialize Host for Juju Controller (Optional)
+# ## Initialize Host Machine for Juju Controller (Optional)
 # ## ====================================================
 
 data "azurerm_client_config" "current" {}
@@ -409,7 +416,7 @@ resource "azuread_service_principal" "juju_sp" {
 # Create a role assignment for the service principal
 resource "azurerm_role_assignment" "juju_sp_role_assignment" {
   count                = var.INITIALIZE_HOST ? 1 : 0
-  scope                = azurerm_resource_group.main.id
+  scope                = azurerm_resource_group.main_rg.id
   role_definition_name = "Owner"
   principal_id         = azuread_service_principal.juju_sp[0].object_id
   principal_type       = "ServicePrincipal"
@@ -419,14 +426,14 @@ resource "azurerm_role_assignment" "juju_sp_role_assignment" {
 resource "local_file" "host_set_up_script" {
   # if INITIALIZE_HOST is true then initialize the controller
   count    = var.INITIALIZE_HOST ? 1 : 0
-  filename = "${path.module}/scripts/set_up.sh"
-  content = templatefile("scripts/set_up.tftpl", {
-    rg_name                = azurerm_resource_group.main.name,
+  filename = "${path.module}/scripts/setup-juju-env.sh"
+  content = templatefile("scripts/setup-juju-env.tftpl", {
+    rg_name                = azurerm_resource_group.main_rg.name,
     mi_name                = "",
     subscription_id        = var.AZURE_SUBSCRIPTION_ID,
     region                 = var.REGION,
     kube_config            = var.AKS_CLUSTER_NAME != "" ? azurerm_kubernetes_cluster.aks[0].kube_config_raw : "",
-    vnet_name              = azurerm_virtual_network.main.name,
+    vnet_name              = azurerm_virtual_network.main_vnet.name,
     controller_subnet_name = azurerm_subnet.controller_subnet.name,
     aks_cluster_name       = var.AKS_CLUSTER_NAME != "" ? var.AKS_CLUSTER_NAME : "",
     app_client_id          = var.INITIALIZE_HOST ? azuread_application.juju_app[0].client_id : "",
@@ -438,7 +445,7 @@ resource "local_file" "host_set_up_script" {
     azuread_application_password.juju_app_password,
     azuread_service_principal.juju_sp,
     azurerm_role_assignment.juju_sp_role_assignment,
-    azurerm_virtual_network.main,
+    azurerm_virtual_network.main_vnet,
     azurerm_subnet.controller_subnet,
   ]
 }

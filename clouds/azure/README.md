@@ -33,6 +33,8 @@ The module exposes the following configurable input variables.
 | `AKS_CLUSTER_NAME`        | `string`       | The name of the Azure Kubernetes Service (AKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an AKS cluster.               | No                                       | `"aks-cluster"` |
 | `INITIALIZE_HOST`         | `bool`         | Whether to set up the host machine with Juju and deploy the Juju controller. This typically involves running a remote-exec provisioner.                       | No                                       | `false`         |
 
+---
+
 ## Module Outputs
 
 Upon successful application, the module exports the following outputs:
@@ -43,15 +45,27 @@ Upon successful application, the module exports the following outputs:
 | `infrastructure` | A map containing key details of the created Azure infrastructure: `resource_group_name`, `vnet_name`, `controller_subnet_name`, `deployments_subnet_name`, and `bastion_public_ip` (if provisioned). | No        |
 | `aks_cluster`    | A map containing details of the provisioned AKS cluster: `name`, `resource_group_name`, `location`, and `kube_config` (the raw kubeconfig content).                                                  | Yes       |
 
+---
+
 ## Usage
 
-This module is designed to integrate with Terraform's backend configuration for state management. It is highly recommended to store your Terraform state in an Azure Storage Account for collaboration, security, and remote operations.
+The `clouds` module is designed to integrate with Terraform's backend configuration for state management. Terraform's state is stored in an Azure Storage Account for collaboration, security, and remote operations.
 
-You can use a separate Terraform module (e.g., `clouds/azure/state`) to provision the Azure Storage Account and container required for the Terraform state backend.
+### 1. Backend Configuration
 
-### Backend Configuration
+You can use a separate Terraform module (`clouds/azure/state`) to provision the Azure Storage Account and container required for the Terraform state backend.
 
-Before using this module, ensure you have updated the `backend` section within your `versions.tf` to reflect your Azure Storage Account details.
+```shell
+pushd clouds/azure/state
+# TODO: change the value set in `storage_account_name` of the backend resource to a bucket name of your choice
+tf init 
+tf plan -out terraform.out
+tf apply terraform.out
+
+popd
+```
+
+Ensure you have updated the `backend` section within your `versions.tf` to reflect your Azure Storage Account details you get from the previous step.
 
 Example `versions.tf` snippet for backend configuration:
 
@@ -61,7 +75,7 @@ terraform {
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~>4.0"
-    }
+    } 
     random = {
       source  = "hashicorp/random"
       version = "~>3.0"
@@ -79,8 +93,27 @@ terraform {
 
 ```
 
-### Module Instantiation
+### 2. Setup the azure infrastructure
 
+#### a. Standalone deployment
+
+```shell
+pushd clouds/azure
+
+tf init 
+tf plan -out terraform.out \
+    -var="..." \
+    -var="..." \  # optional
+    ....
+tf apply terraform.out
+
+popd
+```
+
+*Note* For sensitive variables like `azure_subscription_id`, it's generally better practice to pass them via environment variables (e.g., `TF_VAR_azure_subscription_id`) or a `terraform.tfvars` file to avoid exposing them directly on the command line in shell history.
+
+
+#### b. Sourced as a module
 To use this module, add a `module` block to your Terraform configuration:
 
 ```terraform
@@ -88,47 +121,10 @@ module "juju_azure_infra" {
   source = "./clouds/azure/azure-juju-infrastructure" # Adjust path if module is local or use registry source
 
   azure_subscription_id     = var.azure_subscription_id
-  resource_group_name       = "my-juju-rg"
-  region                    = "eastus"
-  provision_bastion         = true
-  ssh_public_key            = file("~/.ssh/id_rsa.pub") # Path to your SSH public key
-  aks_cluster_name          = "my-juju-aks-cluster"
-  initialize_host           = false
-}
-
-# Example variable definition in variables.tf
-variable "azure_subscription_id" {
-  description = "Your Azure Subscription ID."
-  type        = string
-  sensitive   = true
+  resource_group_name       = var.resource_group_name
+  ...
 }
 ```
-
-### Deployment Steps
-
-After configuring your `versions.tf` and module block, run the following commands in your terminal:
-
-1.  **Initialize Terraform**:
-
-    ```bash
-    terraform init
-    ```
-
-2.  **Plan the Deployment**: Review the resources Terraform will create.
-
-    ```bash
-    terraform plan -var 'azure_subscription_id=your-subscription-id' # Replace with your actual subscription ID
-    ```
-
-    *Note* For sensitive variables like `azure_subscription_id`, it's generally better practice to pass them via environment variables (e.g., `TF_VAR_azure_subscription_id`) or a `terraform.tfvars` file to avoid exposing them directly on the command line in shell history.
-
-3.  **Apply the Configuration**:
-
-    ```bash
-    terraform apply -var 'azure_subscription_id=your-subscription-id' # add any other necessary variables
-    ```
-
-    You will be prompted to confirm the deployment. Type `yes` to proceed.
 
 ## License
 

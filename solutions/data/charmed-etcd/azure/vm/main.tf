@@ -1,3 +1,5 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
 
 data "terraform_remote_state" "infra_state" {
   backend = "azurerm"

@@ -1,3 +1,5 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
 
 variable "RESOURCE_GROUP_NAME" {
   description = "The name of the Azure resource group"
