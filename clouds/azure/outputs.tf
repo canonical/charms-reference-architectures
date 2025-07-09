@@ -1,8 +1,6 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-
-
 output "infrastructure" {
   value = {
     resource_group_name     = azurerm_resource_group.main.name
