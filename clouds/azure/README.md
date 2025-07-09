@@ -31,7 +31,7 @@ The module exposes the following configurable input variables.
 | `SSH_PUBLIC_KEY`          | `string`       | The SSH public key content (e.g., `ssh-rsa AAAAB3NzaC...`) used for authenticating to the bastion host.                                                       | **Yes if `PROVISION_BASTION` is `true`** | `null`          |
 | `SOURCE_ADDRESS_PREFIXES` | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) or service tags (e.g., `["VirtualNetwork", "AzureLoadBalancer"]`) allowed for inbound NSG rules. | No                                       | `null`          |
 | `AKS_CLUSTER_NAME`        | `string`       | The name of the Azure Kubernetes Service (AKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an AKS cluster.               | No                                       | `"aks-cluster"` |
-| `INITIALIZE_HOST`         | `bool`         | Whether to set up the host machine with Juju and deploy the Juju controller. This typically involves running a remote-exec provisioner.                       | No                                       | `false`         |
+| `SETUP_LOCAL_HOST`         | `bool`         | Whether to set up the host machine with Juju and deploy the Juju controller. This typically involves running a remote-exec provisioner.                       | No                                       | `false`         |
 
 ---
 

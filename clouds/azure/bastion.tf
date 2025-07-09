@@ -103,8 +103,8 @@ resource "azurerm_linux_virtual_machine" "bastion" {
     vnet_name              = azurerm_virtual_network.main_vnet.name,
     controller_subnet_name = azurerm_subnet.controller_subnet.name,
     aks_cluster_name       = var.AKS_CLUSTER_NAME != "" ? var.AKS_CLUSTER_NAME : "",
-    app_client_id          = var.INITIALIZE_HOST ? azuread_application.juju_app[0].client_id : "",
-    app_password           = var.INITIALIZE_HOST ? azuread_application_password.juju_app_password[0].value : "",
+    app_client_id          = var.SETUP_LOCAL_HOST ? azuread_application.juju_app[0].client_id : "",
+    app_password           = var.SETUP_LOCAL_HOST ? azuread_application_password.juju_app_password[0].value : "",
   }))
 
   admin_ssh_key {

@@ -46,13 +46,13 @@ variable "AKS_CLUSTER_NAME" {
   default     = "aks-cluster" # Set to empty string if you don't want to provision an AKS cluster
 }
 
-variable "INITIALIZE_HOST" {
+variable "SETUP_LOCAL_HOST" {
   description = "Flag to initialize the host machine with juju and other tools"
   type        = bool
   default     = false
   validation {
     # Only if PROVISION_BASTION is false
-    condition     = var.PROVISION_BASTION == false || var.INITIALIZE_HOST == false
+    condition     = var.PROVISION_BASTION == false || var.SETUP_LOCAL_HOST == false
     error_message = "Initialize host can only be set to true if PROVISION_BASTION is false"
   }
 }
