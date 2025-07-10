@@ -1,0 +1,64 @@
+# juju bundles
+bundles:
+  - name: cos-lite
+    channel: latest/stable
+    series: kubernetes
+
+# charms to be used
+applications:
+  juju-controller:
+    charm: juju-controller
+    channel: 3.6/stable
+
+  self-signed-certificates:
+    charm: self-signed-certificates
+    channel: latest/stable
+  data-integrator:
+    charm: data-integrator
+    channel: latest/stable
+  s3-integrator:
+    charm: data-integrator
+    channel: latest/stable
+  grafana-agent:
+    charm: grafana-agent
+    channel: latest/stable
+  grafana-agent-k8s:
+    charm: grafana-agent-k8s
+    channel: latest/stable
+
+  opensearch:
+    charm: opensearch
+    channel: 2/edge
+    revision: 219
+  opensearch-dashboards:
+    charm: opensearch-dashboards
+    channel: 2/edge
+    revision: 36
+  mongodb:
+    charm: mongodb
+    revision: 212
+    channel: 6/edge
+  mongodb-k8s:
+    charm: mongodb-k8s
+    revision: 63
+    channel: 6/edge
+  mongos:
+    charm: mongos
+    revision: 41
+    channel: 6/edge
+  mongos-k8s:
+    charm: mongos-k8s
+    revision: 30
+    channel: 6/edge
+
+# snaps used by the charms
+packages:
+  - name: opensearch
+    revision: 68
+    push_channel: 2/edge
+  - name: opensearch-dashboards
+    revision: 28
+    push_channel: 2/edge
+  - name: charmed-mongodb
+    revision: 128
+    push_channel: 6/edge
