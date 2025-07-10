@@ -24,7 +24,7 @@ variable "PROVISION_BASTION" {
 }
 
 variable "SSH_PUBLIC_KEY" {
-  description = "The path to the public key for SSH access"
+  description = "The path to the public key for SSH access to the bastion"
   type        = string
   default     = null
   # Needs to be set if PROVISION_BASTION is true
@@ -35,7 +35,7 @@ variable "SSH_PUBLIC_KEY" {
 }
 
 variable "SSH_PRIVATE_KEY" {
-  description = "The path to the private key for SSH access"
+  description = "The path to the private key for SSH access to the bastion"
   type        = string
   default     = null
   # Needs to be set if PROVISION_BASTION is true
