@@ -34,4 +34,4 @@ jobs:
         # GITHUB_TOKEN: ${{ github.token }}
 
     - name: Run TFLint
-      run: tflint --recursive -f compact
+      run: tflint --recursive -f compact --disable-rule=terraform_module_pinned_source

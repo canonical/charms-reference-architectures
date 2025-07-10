@@ -38,7 +38,7 @@ module "cos" {
 
 
 module "etcd" {
-  source                   = "git::https://github.com/canonical/charmed-etcd-operator//terraform/product?ref=rev50"
+  source                   = "git::https://github.com/canonical/charmed-etcd-operator//terraform/product"
   etcd                     = var.etcd
   grafana-agent            = var.grafana-agent
   backups-integrator       = var.backups-integrator
