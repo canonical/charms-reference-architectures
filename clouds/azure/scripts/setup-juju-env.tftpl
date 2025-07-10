@@ -1,0 +1,91 @@
+#!/bin/bash
+
+set -euo pipefail
+
+sudo apt update -y
+sudo apt upgrade -y
+
+# Install Juju
+echo "Install terraform"
+sudo snap install terraform --classic
+echo "Installing juju..."
+sudo snap install juju
+echo "Initializing juju..."
+sudo -u ubuntu bash -c "mkdir -p ~/.local/share/juju"
+
+# set up azure credentials for juju
+echo "Setting up Azure credentials for Juju..."
+if [ -z "${mi_name}" ]; then
+  # check that app_client_id and app_password are set
+  if [ -z "${app_client_id}" ] || [ -z "${app_password}" ]; then
+    echo "Error: app_client_id and app_password must be set when mi_name is not set."
+    exit 1
+  fi
+  echo "Managed identity name is not set, using service principal ."
+  cat <<EOF >/home/ubuntu/credentials.yaml
+credentials:
+  azure:
+    azure-option-one:
+      auth-type: service-principal-secret
+      application-id: ${app_client_id}
+      application-password: ${app_password}
+      subscription-id: ${subscription_id}
+EOF
+else
+  echo "Using managed identity for Azure credentials..."
+  cat <<EOF >/home/ubuntu/credentials.yaml
+credentials:
+  azure:
+    azure-option-one:
+      auth-type: managed-identity
+      managed-identity-path: ${rg_name}/${mi_name}
+      subscription-id: ${subscription_id}
+EOF
+fi
+
+echo "Setting permissions for credentials.yaml..."
+chown ubuntu:ubuntu /home/ubuntu/credentials.yaml
+chmod 644 /home/ubuntu/credentials.yaml
+
+# set up AKS kubeconf if aks_cluster_name is set
+if [ -z "${aks_cluster_name}" ]; then
+  echo "AKS cluster name is not set, skipping AKS kubeconfig setup."
+else
+  echo "Setting up AKS kubeconfig..."
+  sudo -u ubuntu bash -c "mkdir -p ~/.kube"
+  cat <<EOF >/home/ubuntu/.kube/config
+${kube_config}
+EOF
+  echo "Setting permissions for kubeconfig..."
+  chown ubuntu:ubuntu /home/ubuntu/.kube/config
+  chmod 644 /home/ubuntu/.kube/config
+fi
+
+# Add juju credentials using ubuntu user
+echo "Adding Juju credentials..."
+sudo -u ubuntu bash -c "juju add-credential -f /home/ubuntu/credentials.yaml --client azure"
+
+echo "Setting default region for Juju..."
+sudo -u ubuntu bash -c "juju default-region azure ${region}"
+
+# Bootstrap Juju controller
+echo "Bootstrapping Juju controller..."
+sudo -u ubuntu bash -c "juju bootstrap azure --config resource-group-name=${rg_name} --config network=${vnet_name} --to subnet=${controller_subnet_name} az"
+
+# set up k8s on the same controller if aks_cluster_name is set
+if [ -z "${aks_cluster_name}" ]; then
+  echo "AKS cluster name is not set, skipping Kubernetes setup."
+else
+  echo "Setting up Kubernetes on the Juju controller..."
+  sudo -u ubuntu bash -c "juju add-k8s k8s --client --controller az"
+fi
+
+echo "Juju environment setup complete."
+echo "Cleaning up temporary files..."
+rm -f /home/ubuntu/credentials.yaml
+echo "Temporary files cleaned up."
+echo "Installing Azure CLI..."
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+echo "Azure CLI installed successfully."
+echo "Juju environment setup script completed successfully."
+# End of script
