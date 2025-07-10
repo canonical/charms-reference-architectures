@@ -49,7 +49,7 @@ resource "azurerm_network_security_group" "main_nsg" {
 
   security_rule {
     name                       = "AllowHTTP"
-    priority                   = 140
+    priority                   = 130
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
@@ -73,7 +73,7 @@ resource "azurerm_network_security_group" "main_nsg" {
 
   security_rule {
     name                       = "allow-outbound"
-    priority                   = 130
+    priority                   = 150
     direction                  = "Outbound"
     access                     = "Allow"
     protocol                   = "*"

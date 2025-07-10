@@ -94,19 +94,6 @@ resource "azurerm_linux_virtual_machine" "bastion" {
     azurerm_network_interface.bastion_nic[count.index].id,
   ]
 
-  user_data = base64encode(templatefile("scripts/setup-juju-env.tftpl", {
-    rg_name                = azurerm_resource_group.main_rg.name,
-    mi_name                = var.PROVISION_BASTION ? azurerm_user_assigned_identity.bastion_identity[0].name : "",
-    subscription_id        = var.AZURE_SUBSCRIPTION_ID,
-    region                 = var.REGION,
-    kube_config            = var.AKS_CLUSTER_NAME != "" ? azurerm_kubernetes_cluster.aks[0].kube_config_raw : "",
-    vnet_name              = azurerm_virtual_network.main_vnet.name,
-    controller_subnet_name = azurerm_subnet.controller_subnet.name,
-    aks_cluster_name       = var.AKS_CLUSTER_NAME != "" ? var.AKS_CLUSTER_NAME : "",
-    app_client_id          = var.SETUP_LOCAL_HOST ? azuread_application.juju_app[0].client_id : "",
-    app_password           = var.SETUP_LOCAL_HOST ? azuread_application_password.juju_app_password[0].value : "",
-  }))
-
   admin_ssh_key {
     username   = "ubuntu"
     public_key = file(var.SSH_PUBLIC_KEY) # Path to your SSH public key
@@ -139,5 +126,44 @@ resource "azurerm_linux_virtual_machine" "bastion" {
     azurerm_user_assigned_identity.bastion_identity,
     azurerm_virtual_network.main_vnet,
     azurerm_subnet.controller_subnet,
+  ]
+}
+
+# workaround for https://forum.snapcraft.io/t/not-a-snap-cgroup-error-when-running-chromium/33243/3
+resource "null_resource" "set_up_bastion_script" {
+  count = var.PROVISION_BASTION ? 1 : 0
+  provisioner "file" {
+    content = templatefile("scripts/setup-juju-env.tftpl", {
+      rg_name                = azurerm_resource_group.main_rg.name,
+      mi_name                = var.PROVISION_BASTION ? azurerm_user_assigned_identity.bastion_identity[0].name : "",
+      subscription_id        = var.AZURE_SUBSCRIPTION_ID,
+      region                 = var.REGION,
+      kube_config            = var.AKS_CLUSTER_NAME != "" ? azurerm_kubernetes_cluster.aks[0].kube_config_raw : "",
+      vnet_name              = azurerm_virtual_network.main_vnet.name,
+      controller_subnet_name = azurerm_subnet.controller_subnet.name,
+      aks_cluster_name       = var.AKS_CLUSTER_NAME != "" ? var.AKS_CLUSTER_NAME : "",
+      app_client_id          = var.SETUP_LOCAL_HOST ? azuread_application.juju_app[0].client_id : "",
+      app_password           = var.SETUP_LOCAL_HOST ? azuread_application_password.juju_app_password[0].value : "",
+    })
+    destination = "setup-juju-env.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "bash ~/setup-juju-env.sh",
+      "rm ~/setup-juju-env.sh",
+    ]
+  }
+
+  connection {
+    type        = "ssh"
+    host        = azurerm_public_ip.bastion_public_ip[0].ip_address
+    user        = "ubuntu"
+    private_key = file(var.SSH_PRIVATE_KEY)
+  }
+
+  depends_on = [
+    azurerm_linux_virtual_machine.bastion,
+    azurerm_public_ip.bastion_public_ip
   ]
 }

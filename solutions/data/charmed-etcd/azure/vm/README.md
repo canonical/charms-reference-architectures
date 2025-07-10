@@ -19,6 +19,7 @@ Before using this module, ensure you have the following prerequisites in place o
   * **Juju**: Version `3.6` or higher.
   * **Juju Controller**: A Juju controller must be already set up and accessible from your host machine. This includes:
       * A Juju controller with both VM-based clouds (e.g., AWS, Azure, GCP) and Kubernetes-based clouds (e.g., MicroK8s, Charmed Kubernetes) configured. 
+  * **az cli**: The Azure CLI must be installed and authenticated (`az login`) with an Azure account that has the necessary permissions to read the Azure Storage Account and container used for the infrastructure remote state.
 
 ## Module Inputs
 

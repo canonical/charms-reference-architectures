@@ -11,7 +11,7 @@ terraform {
 
     azuread = {
       source  = "hashicorp/azuread"
-      version = "~> 2.7.0"
+      version = "~> 3.4.0"
     }
 
     local = {
@@ -26,14 +26,14 @@ terraform {
 
     random = {
       source  = "hashicorp/random"
-      version = "~>3.0"
+      version = "~>3.7.2"
     }
   }
 
   # set up backend configuration to use Azure Storage Account
   backend "azurerm" {
     resource_group_name  = "tfstate-rg"
-    storage_account_name = "tfstate0fcsksld"
+    storage_account_name = "tfstate8lbos2zx"
     container_name       = "tfstate"
     key                  = "infra.terraform.tfstate"
   }

@@ -84,5 +84,8 @@ echo "Juju environment setup complete."
 echo "Cleaning up temporary files..."
 rm -f /home/ubuntu/credentials.yaml
 echo "Temporary files cleaned up."
+echo "Installing Azure CLI..."
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+echo "Azure CLI installed successfully."
 echo "Juju environment setup script completed successfully."
 # End of script
