@@ -12,7 +12,17 @@ terraform {
 
     juju = {
       source  = "juju/juju"
-      version = ">= 0.18.0"
+      version = ">= 0.20.0"
+    }
+
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.7.2"
+    }
+
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5.3" # or whatever version you're using
     }
   }
 }
