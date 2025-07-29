@@ -53,7 +53,10 @@ Once your Terraform configuration is set up, execute the following commands in y
 2.  **Plan the Deployment**: Review the changes Terraform will apply. This is a crucial step to understand the impact of your configuration.
 
     ```bash
-    terraform plan
+    terraform plan -out terraform.out \
+      -var='etcd={}'                  \
+      -var='backups-integrator={"storage_type": "azure-storage", "config": {"storage-account": "stoacc", "container": "conn"}}' \
+      -var='remote-state={"storage_account_name": "<CHANGE_ME>"}'  # TODO change this to the name of the storage_account_name you've been using to store the state
     ```
 
 3.  **Apply the Configuration**: This command executes the planned actions and deploys the charmed etcd solution.
