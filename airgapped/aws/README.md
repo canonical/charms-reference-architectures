@@ -53,6 +53,7 @@ This will output:
   - `subnet_vpn`: the subnet where the VPN (wireguard) instance will be running
     - This will be the only instance in the deployment with internet access
     - This will be the only instance with a public IP
+    - cidr block: `10.0.4.0/24`
   - `subnet_bastion`: the private subnet in which the bastion instance will be hosted:
     - cidr block `10.0.0.0/24`
   - `subnet_snap_store_proxy`: the private subnet in which the snap-store-proxy as well as the OCI registry instance will be hosted.
