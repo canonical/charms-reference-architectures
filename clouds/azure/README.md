@@ -123,7 +123,7 @@ To use this module, add a `module` block to your Terraform configuration:
 
 ```terraform
 module "juju_azure_infra" {
-  source = "./clouds/azure/azure-juju-infrastructure" # Adjust path if module is local or use registry source
+  source = "git::https://github.com/canonical/charms-reference-architectures//clouds/azure?ref=main" # Adjust path if module is local or use registry source
 
   azure_subscription_id     = var.azure_subscription_id
   resource_group_name       = var.resource_group_name
