@@ -57,7 +57,7 @@ This will output:
   - `subnet_bastion`: the private subnet in which the bastion instance will be hosted:
     - cidr block `10.0.0.0/24`
   - `subnet_snap_store_proxy`: the private subnet in which the snap-store-proxy as well as the OCI registry instance will be hosted.
-    - cidr block: `10.0.10/24`
+    - cidr block: `10.0.1.0/24`
   - `subnet_juju_controller`: the private subnet in which the controller instance(s) will be running
     - cidr block: `10.0.2.0/24`
   - `subnet_juju_apps`: the private subnet in which all Juju units will be running (incl. the microk8s instance)
