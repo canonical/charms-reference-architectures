@@ -14,3 +14,9 @@ The `solutions` directory contains Terraform modules for deploying specific solu
 The solution modules are categorized by team, product, cloud, and substrate. Each module has its own `README.md` file that provides detailed instructions on how to use the module, including input variables, outputs, and usage examples.
 
 Example: [`solutions/data/charmed-etcd/azure/vm`](solutions/data/charmed-etcd/azure/vm/README.md)
+
+## Air gapped testing
+The `airgapped` directory contains Terraform modules for creating a fully air-gapped environment for development or testing. 
+Then deploying VM & K8s charms as well as snaps in a fully cloud-based air-gapped environment.  
+
+Example: [`airgapped/aws`](airgapped/aws/README.md)
