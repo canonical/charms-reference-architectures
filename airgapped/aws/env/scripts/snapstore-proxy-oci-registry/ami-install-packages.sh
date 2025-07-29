@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 
 # refresh all packages
 apt update
@@ -18,9 +21,3 @@ snap start amazon-ssm-agent
 
 # install yq from github, snap confinement issues when reading from /tmp
 wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && chmod +x /usr/bin/yq
-
-# reboot if needed
-#if [ -f /var/run/reboot-required ]; then
-#    echo 'Reboot required. Rebooting now...'
-#    reboot
-#fi

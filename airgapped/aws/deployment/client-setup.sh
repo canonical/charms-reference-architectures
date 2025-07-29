@@ -1,7 +1,25 @@
 #!/usr/bin/env bash
 
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+
 echo "Installing required dependencies..."
-brew install wireguard-tools
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    brew install wireguard-tools
+elif [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    if [[ "${ID}" != ubuntu ]]; then
+        sudo apt-get install wireguard
+    else
+        echo "Error: unsupported distro ${NAME}" >&2
+        exit 1
+    fi
+else
+    echo "Error: Unknown or unsupported OS" >&2
+    exit 1
+fi
+
 
 echo -e "\nGenerating key pair..."
 wg genkey | tee client.key | wg pubkey > client.pub

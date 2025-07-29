@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 
 function snapstore_proxy_postgres() {
     snap-proxy config proxy.db.connection=postgresql://snapproxy-user:snapproxy-password@localhost:5432/snapproxy-db

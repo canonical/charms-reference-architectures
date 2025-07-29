@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 
 JUJU_VERSION="3.6.5"
 

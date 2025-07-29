@@ -1,4 +1,4 @@
-# Copyright 2024 Canonical Ltd.
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 
@@ -33,7 +33,7 @@ resource "aws_instance" "vpn_instance" {
   associate_public_ip_address = true
   key_name                    = "admin"
   vpc_security_group_ids      = [aws_security_group.vpn_sg.id]
-  user_data = templatefile("${path.module}/scripts/cloudinit-vpn.sh", {
+  user_data = templatefile("${path.module}/scripts/cloudinit-vpn.tftpl", {
     vpn_client_public_key = var.vpn_client_public_key
   })
 
@@ -51,7 +51,7 @@ resource "aws_instance" "k8s_juju_apps_instance" {
   key_name                    = aws_key_pair.internal_key_pair.id
   iam_instance_profile        = aws_iam_instance_profile.juju_unit_instance_profile.name
 
-  user_data = templatefile("${path.module}/scripts/cloudinit-juju-k8s-host.sh", {
+  user_data = templatefile("${path.module}/scripts/cloudinit-juju-k8s-host.tftpl", {
     internal_private_key = data.local_file.internal_private_key.content
   })
 
@@ -69,7 +69,7 @@ resource "aws_instance" "bastion_instance" {
   vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
   iam_instance_profile        = aws_iam_instance_profile.bastion_instance_profile.name
 
-  user_data = templatefile("${path.module}/scripts/cloudinit-bastion.sh", {
+  user_data = templatefile("${path.module}/scripts/cloudinit-bastion.tftpl", {
     internal_private_key      = data.local_file.internal_private_key.content
     region                    = var.region
     juju_version              = "3.6.5"

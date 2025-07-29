@@ -1,4 +1,4 @@
-# Copyright 2024 Canonical Ltd.
+# Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 # -------------------------------------------------------------------------
@@ -106,6 +106,3 @@ resource "aws_route53_zone" "hosted_zone_private" {
     Name = "route53-zone-${var.region}-${var.team}"
   }
 }
-
-# -------------------------------------------------------------------------
-# VPN setup

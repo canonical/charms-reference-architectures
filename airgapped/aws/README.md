@@ -1,7 +1,7 @@
 # charms-aws-airgapped
-A repo for building a test/dev environment for airgapped deployments of charms in AWS
+Terraform modules for building a test/dev environment for airgapped deployments of charms in AWS
 
-**Note:** *this repo is purely destined for development / testing, NOT production.*
+**Note:** *these modules are purely destined for development / testing, NOT production.*
 
 ----
 
@@ -28,7 +28,7 @@ terraform {
 ### 2. Create an ubuntu dev account (without 2FA) 
 Use the credentials you created and put them in: `env/scripts/snapstore-proxy-oci-registry/ami-setup-store.sh`
 ```
-EMAIL="xxxx@gmail.com\r"
+EMAIL="<xxxx>@<mail.com>\r"
 PASSWORD="xxxx\r"
 ```
 
@@ -36,6 +36,11 @@ PASSWORD="xxxx\r"
 
 ### 3. List the snaps, charms and bundle you wish to export
 In `env/scripts/snapstore-proxy-oci-registry/resources.yaml`, list all resources you wish to deploy in an airgapped environment.
+
+**Note:** The format of this file is a mix between the various formats allowed by the enterprise store, 
+for [charms](https://documentation.ubuntu.com/enterprise-store/main/how-to/charmhub-proxy/#export-charms), 
+[snaps](https://documentation.ubuntu.com/enterprise-store/main/how-to/charmhub-proxy/#export-snap-resources) 
+and adds a minimal custom `bundle` object to be serialized into command line arguments of [`store-admin export bundle`](https://documentation.ubuntu.com/enterprise-store/main/how-to/charmhub-proxy/#export-charm-bundles)
 
 ### 4. Deploy:
 
@@ -53,10 +58,11 @@ This will output:
   - `subnet_vpn`: the subnet where the VPN (wireguard) instance will be running
     - This will be the only instance in the deployment with internet access
     - This will be the only instance with a public IP
+    - cidr block: `10.0.4.0/24`
   - `subnet_bastion`: the private subnet in which the bastion instance will be hosted:
-    - cidr block `10.0.0.0/24`
+    - cidr block: `10.0.0.0/24`
   - `subnet_snap_store_proxy`: the private subnet in which the snap-store-proxy as well as the OCI registry instance will be hosted.
-    - cidr block: `10.0.10/24`
+    - cidr block: `10.0.1.0/24`
   - `subnet_juju_controller`: the private subnet in which the controller instance(s) will be running
     - cidr block: `10.0.2.0/24`
   - `subnet_juju_apps`: the private subnet in which all Juju units will be running (incl. the microk8s instance)
@@ -107,7 +113,9 @@ VPN Client public key - paste it into the VPN server's /etc/wireguard/wg0.conf i
 (If you're using terraform, put it in the variable 'vpn_client_public_key': 
 AC2V/LoZwh/I3iXycPd056SefBT0qmM+6cd9uzgcXC0=
 ```
-Copy the key, and stop there. Open a new terminal tab. 
+Copy the key, and do not proceed with the prompts (Do not quit the prompt, we will come back to it in a future step). 
+
+Now open a new terminal tab. 
 
 ### 4. S3 bucket for terraform state
 Ensure that the previously created bucket for the TF state is well referenced in your `main.tf` 
@@ -146,10 +154,13 @@ This should give you 2 outputs:
 Go back to your vpn configuration terminal tab and complete the flow, paste the `public_ip_vpn` value into the prompt.
 ```
 Enter the VPN Server instance's Public IP: <public_ip_vpn>
+```
 
+You will be then prompted with the following:
+```
 Enter the VPN Server key's public key (sudo cat /etc/wireguard/server.pub): ABCD
 ```
-to fill the last prompt, ssh into your VPN instance (using the `admin` key) and  paste it there.
+To fill the previous prompt, ssh into your VPN instance (using the `admin` key) and paste it there (as shown below).
 ```
 ssh -i admin.key ubuntu@<public_ip_vpn> -t "sudo cat /etc/wireguard/server.pub"
 ```
