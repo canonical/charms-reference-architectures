@@ -29,7 +29,7 @@ The module exposes the following configurable input variables.
 | `AZURE_SUBSCRIPTION_ID` | `string`       | Your Azure subscription ID where the resources will be created.                                                                                               | Yes                                      | `n/a`           |
 | `PROVISION_BASTION`     | `bool`         | Set to `true` to provision a dedicated bastion host for secure access.                                                                                        | No                                       | `true`          |
 | `SSH_PUBLIC_KEY`        | `string`       | Path to the SSH public key used to access the bastion.                                                                                                        | **Yes if `PROVISION_BASTION` is `true`** | `null`          |
-| `SSH_PRIVATE_KEY`       | `string`       | Path to the SSH private key used to access the bastion.                                                                                                       |
+| `SSH_PRIVATE_KEY`       | `string`       | Path to the SSH private key used to access the bastion.                                                                                                       | **Yes if `PROVISION_BASTION` is `true`** | `null`          |
 | `SOURCE_ADDRESSES`      | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) or service tags (e.g., `["VirtualNetwork", "AzureLoadBalancer"]`) allowed for inbound NSG rules. | No                                       | `null`          |
 | `AKS_CLUSTER_NAME`      | `string`       | The name of the Azure Kubernetes Service (AKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an AKS cluster.               | No                                       | `"aks-cluster"` |
 | `SETUP_LOCAL_HOST`      | `bool`         | Whether to set up the host machine with Juju and deploy the Juju controller. This typically involves running a remote-exec provisioner.                       | No                                       | `false`         |
@@ -56,41 +56,38 @@ The `clouds` module is designed to integrate with Terraform's backend configurat
 
 You can use a separate Terraform module (`clouds/azure/state`) to provision the Azure Storage Account and container required for the Terraform state backend.
 
+1. Create the azure storage account where the TF state will be saved
 ```shell
 pushd clouds/azure/state
-# TODO: change the value set in `storage_account_name` of the backend resource to a bucket name of your choice
+
+# TODO for users: change the value set in the `storage_account_name` key of the backend resource to a bucket name of your choice
 tf init 
-tf plan -out terraform.out
+
+tf plan -out terraform.out \
+    -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId"  # required, your Azure subscription ID
+
 tf apply terraform.out
 
 popd
 ```
+2. Once that's done, copy the `storage_account_name` output variable 
+3. Update the `backend` section within your `clouds/azure/versions.tf` file to reflect your Azure Storage Account details you get from the previous step.
 
-Ensure you have updated the `backend` section within your `versions.tf` to reflect your Azure Storage Account details you get from the previous step.
-
-Example `versions.tf` snippet for backend configuration:
-
-  ...
-
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~>4.0"
-    } 
-    random = {
-      source  = "hashicorp/random"
-      version = "~>3.0"
+Example `clouds/azure/versions.tf` snippet for backend configuration:
+```
+  terraform {
+    ...
+    required_providers {
+      ...
     }
+    
+    # set up backend configuration to use Azure Storage Account
+    backend "azurerm" {
+        ...
+        storage_account_name = "tfstate8lbos2zx" # TODO replace this with a valid storage account name
+        ...
+      }
   }
-
-  # set up backend configuration to use Azure Storage Account
-  backend "azurerm" {
-    resource_group_name  = "tfstate-rg"
-    storage_account_name = "tfstate0axk8vld"
-    container_name       = "tfstate"
-    key                  = "infra.terraform.tfstate"
-  }
-}
-
 ```
 
 ### 2. Setup the azure infrastructure
@@ -101,15 +98,18 @@ Example `versions.tf` snippet for backend configuration:
 pushd clouds/azure
 
 tf init 
+
 tf plan -out terraform.out \
-    -var="RESOURCE_GROUP_NAME=myResourceGroup" \  # optional, defaults to "main-rg"
-    -var="REGION=eastus" \  # optional, defaults to "eastus
+    -var="RESOURCE_GROUP_NAME=myResourceGroup"    \  # optional, defaults to "main-rg"
+    -var="REGION=eastus"                          \  # optional, defaults to "eastus
     -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId" \  # required, your Azure subscription ID
-    -var="PROVISION_BASTION=true" \  # optional, defaults to true
-    -var="SSH_PUBLIC_KEY=~/.ssh/id_rsa.pub" \  # required if PROVISION_BASTION is true, your SSH public key
-    -var='SOURCE_ADDRESSES=["123.45.67/32"]' \  # optional, defaults to null
-    -var="AKS_CLUSTER_NAME=myAKSCluster" \  # optional, defaults to "aks-cluster", set to "" if you do not want to provision an AKS cluster
-    -var="SETUP_LOCAL_HOST=true" \  # optional, defaults to false, set to true if you want to set up the local host with Juju and deploy the controller
+    -var="PROVISION_BASTION=true"                 \  # optional, defaults to true
+    -var="SSH_PUBLIC_KEY=~/.ssh/id_rsa.pub"       \  # required ONLY IF PROVISION_BASTION is true, your SSH public key to be stored in the Bastion
+    -var="SSH_PRIVATE_KEY=~/.ssh/id_rsa"          \  # required ONLY IF PROVISION_BASTION is true, your SSH private key to ssh into the Bastion
+    -var='SOURCE_ADDRESSES=["123.45.67.12/32"]'   \  # optional, put your host's (Public) IP address to be allowed to ssh into the Bastion, defaults to null/[0.0.0.0/0]
+    -var="AKS_CLUSTER_NAME=myAKSCluster"          \  # optional, defaults to "aks-cluster", set to "" if you do not want to provision an AKS cluster
+    -var="SETUP_LOCAL_HOST=false"                 \  # optional, defaults to false, set to true if you don't want a bastion and you want to set up the local host with Juju and deploy the controller
+
 tf apply terraform.out
 
 popd
@@ -130,6 +130,7 @@ module "juju_azure_infra" {
   region                    = var.region
   provision_bastion         = var.provision_bastion
   ssh_public_key            = var.ssh_public_key
+  ssh_private_key           = var.ssh_private_key
   source_address_prefixes   = var.source_address_prefixes
   aks_cluster_name          = var.aks_cluster_name
   setup_local_host          = var.setup_local_host
