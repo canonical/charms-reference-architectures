@@ -29,7 +29,6 @@ module "cos" {
   source  = "git::https://github.com/canonical/observability-stack//terraform/cos-lite"
   model   = var.cos.model
   channel = var.cos.channel
-  use_tls = var.cos.use_tls
 
   depends_on = [
     juju_model.k8s_model,

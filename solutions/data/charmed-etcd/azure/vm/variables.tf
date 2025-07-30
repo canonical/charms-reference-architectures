@@ -5,13 +5,10 @@ variable "cos" {
   description = "Configuration for the Charmed Observability Stack (COS)"
   type = object({
     model   = optional(string, "k8s")
-    channel = optional(string, "2/edge")
-    use_tls = optional(bool, false)
+    channel = optional(string, null)
   })
   default = {
     model   = "k8s"
-    channel = "2/edge"
-    use_tls = false
   }
 }
 
@@ -30,6 +27,7 @@ variable "etcd" {
     storage           = optional(map(string), {})
     endpoint_bindings = optional(map(string), {})
     expose            = optional(bool, false)
+    tls               = optional(bool, false)
   })
 }
 
@@ -48,7 +46,7 @@ variable "backups-integrator" {
 
   validation {
     condition     = contains(["s3", "azure-storage"], var.backups-integrator.storage_type)
-    error_message = "backup-integrator allows one of the values: 's3', 'azure' for storage_type."
+    error_message = "backup-integrator allows one of the values: 's3', 'azure-storage' for storage_type."
   }
 
   validation {
@@ -113,9 +111,9 @@ variable "data-integrator" {
 variable "remote-state" {
   description = "Configuration for the remote state"
   type = object({
-    resource_group_name  = string
-    storage_account_name = string
+    resource_group_name  = optional(string, "tfstate-rg")
+    storage_account_name = optional(string, "tfstate")
     container_name       = string
-    key                  = string
+    key                  = optional(string, "infra.terraform.tfstate")
   })
 }

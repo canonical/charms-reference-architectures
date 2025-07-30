@@ -28,5 +28,9 @@ To use this module, run the following command in your terminal:
 
 ```bash
 terraform init
-terraform apply -var="RESOURCE_GROUP_NAME=myResourceGroup" -var="REGION=eastus" -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId" -var="STORAGE_ACCOUNT_NAME=myStorageAccount"
+terraform apply \
+  -var="RESOURCE_GROUP_NAME=myResourceGroup" \
+  -var="REGION=eastus" \
+  -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId" \
+  -var="STORAGE_ACCOUNT_NAME=myStorageAccount"
 ```

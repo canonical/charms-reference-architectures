@@ -56,17 +56,17 @@ The `clouds` module is designed to integrate with Terraform's backend configurat
 
 You can use a separate Terraform module (`clouds/azure/state`) to provision the Azure Storage Account and container required for the Terraform state backend.
 
-1. Create the azure storage account where the TF state will be saved
+1. Create the azure storage account where the terraform state will be saved
 ```shell
 pushd clouds/azure/state
 
 # TODO for users: change the value set in the `storage_account_name` key of the backend resource to a bucket name of your choice
-tf init 
+terraform init 
 
-tf plan -out terraform.out \
+terraform plan -out terraform.out \
     -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId"  # required, your Azure subscription ID
 
-tf apply terraform.out
+terraform apply terraform.out
 
 popd
 ```
@@ -97,9 +97,9 @@ Example `clouds/azure/versions.tf` snippet for backend configuration:
 ```shell
 pushd clouds/azure
 
-tf init 
+terraform init 
 
-tf plan -out terraform.out \
+terraform plan -out terraform.out \
     -var="RESOURCE_GROUP_NAME=myResourceGroup"    \  # optional, defaults to "main-rg"
     -var="REGION=eastus"                          \  # optional, defaults to "eastus
     -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId" \  # required, your Azure subscription ID
@@ -110,7 +110,7 @@ tf plan -out terraform.out \
     -var="AKS_CLUSTER_NAME=myAKSCluster"          \  # optional, defaults to "aks-cluster", set to "" if you do not want to provision an AKS cluster
     -var="SETUP_LOCAL_HOST=false"                 \  # optional, defaults to false, set to true if you don't want a bastion and you want to set up the local host with Juju and deploy the controller
 
-tf apply terraform.out
+terraform apply terraform.out
 
 popd
 ```
