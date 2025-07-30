@@ -112,8 +112,8 @@ variable "remote-state" {
   description = "Configuration for the remote state"
   type = object({
     resource_group_name  = optional(string, "tfstate-rg")
-    storage_account_name = optional(string, "tfstate")
-    container_name       = string
+    storage_account_name = string
+    container_name       = optional(string, "tfstate")
     key                  = optional(string, "infra.terraform.tfstate")
   })
 }
