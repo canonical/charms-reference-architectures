@@ -18,16 +18,23 @@ resource "aws_vpc" "main_vnet" {
 
 resource "aws_subnet" "controller_subnet" {
   vpc_id                  = aws_vpc.main_vnet.id
-  cidr_block              = cidrsubnet(aws_vpc.main_vnet.cidr_block, 8, 1)
+  cidr_block              = "10.0.1.0/24"
   availability_zone       = local.availability_zone
   map_public_ip_on_launch = false
 }
 
 resource "aws_subnet" "deployments_subnet" {
   vpc_id                  = aws_vpc.main_vnet.id
-  cidr_block              = cidrsubnet(aws_vpc.main_vnet.cidr_block, 8, 2)
+  cidr_block              = "10.0.2.0/24"
   availability_zone       = local.availability_zone
   map_public_ip_on_launch = false
+}
+
+resource "aws_subnet" "bastion_subnet" {
+  vpc_id                  = aws_vpc.main_vnet.id
+  cidr_block              = "10.0.3.0/24"
+  availability_zone       = local.availability_zone
+  map_public_ip_on_launch = true
 }
 
 resource "aws_internet_gateway" "internet_gateway" {
@@ -94,4 +101,25 @@ resource "aws_route" "deployments_nat_route" {
 resource "aws_route_table_association" "deployments_nat_internet_connection" {
   subnet_id      = aws_subnet.deployments_subnet.id
   route_table_id = aws_route_table.deployments_nat_routing_table.id
+}
+
+# --- Connect public subnet for bastion host to internet
+# Routing table
+resource "aws_route_table" "bastion_routing_table" {
+  count      = var.PROVISION_BASTION ? 1 : 0
+  vpc_id     = aws_vpc.main_vnet.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.internet_gateway.id
+  }
+
+  depends_on = [aws_internet_gateway.internet_gateway]
+}
+
+# Associate route to subnet
+resource "aws_route_table_association" "bastion_internet_connection" {
+  count          = var.PROVISION_BASTION ? 1 : 0
+  subnet_id      = aws_subnet.bastion_subnet.id
+  route_table_id = aws_route_table.bastion_routing_table[count.index].id
 }
