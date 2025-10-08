@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -euo pipefail
+
+sudo apt update -y
+sudo apt upgrade -y
+
+# Install Juju
+echo "Installing juju..."
+sudo snap install juju
+echo "Initializing juju..."
+sudo -u ubuntu bash -c "mkdir -p ~/.local/share/juju"
+
+# set up aws credentials for juju
+echo "Setting up AWS credentials for Juju..."
+cat <<EOF >/home/ubuntu/credentials.yaml
+credentials:
+  aws:
+    aws-credentials:
+      auth-type: access-key
+      access-key: ${access_key}
+      secret-key: ${secret_key}
+EOF
+
+echo "Setting permissions for credentials.yaml..."
+chown ubuntu:ubuntu /home/ubuntu/credentials.yaml
+chmod 644 /home/ubuntu/credentials.yaml
+
+# Add juju credentials using ubuntu user
+echo "Adding Juju credentials..."
+sudo -u ubuntu bash -c "juju add-credential -f /home/ubuntu/credentials.yaml --client aws"
+
+# Bootstrap Juju controller
+echo "Bootstrapping Juju controller..."
+sudo -u ubuntu bash -c "juju bootstrap aws/${region} --config vpc-id="${vpc_id}" --config vpc-id-force=true --to subnet="${subnet_id}" aws --credential aws-credentials"
+
+echo "Juju environment setup complete."
+echo "Cleaning up temporary files..."
+rm -f /home/ubuntu/credentials.yaml
+echo "Temporary files cleaned up."
+echo "Juju environment setup script completed successfully."
+# End of script
