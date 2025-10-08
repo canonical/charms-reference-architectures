@@ -106,7 +106,6 @@ resource "aws_route_table_association" "deployments_nat_internet_connection" {
 # --- Connect public subnet for bastion host to internet
 # Routing table
 resource "aws_route_table" "bastion_routing_table" {
-  count      = var.PROVISION_BASTION ? 1 : 0
   vpc_id     = aws_vpc.main_vnet.id
 
   route {
@@ -119,7 +118,6 @@ resource "aws_route_table" "bastion_routing_table" {
 
 # Associate route to subnet
 resource "aws_route_table_association" "bastion_internet_connection" {
-  count          = var.PROVISION_BASTION ? 1 : 0
   subnet_id      = aws_subnet.bastion_subnet.id
-  route_table_id = aws_route_table.bastion_routing_table[count.index].id
+  route_table_id = aws_route_table.bastion_routing_table.id
 }

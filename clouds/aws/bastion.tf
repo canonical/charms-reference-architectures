@@ -30,7 +30,6 @@ resource "aws_security_group" "bastion_sg" {
 
 # Security group for access from bastion to controller subnet
 resource "aws_security_group" "bastion_to_controller_sg" {
-  count       = var.PROVISION_BASTION ? 1 : 0
   vpc_id      = aws_vpc.main_vnet.id
 
   ingress {
@@ -100,7 +99,7 @@ resource "null_resource" "set_up_bastion_script" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
       region                 = var.REGION,
       vpc_id                 = aws_vpc.main_vnet.id,
-      subnet_id              = aws_subnet.controller_subnet.id,
+      subnet_id              = aws_subnet.bastion_subnet.id, # revert
       access_key             = var.ACCESS_KEY,
       secret_key             = var.SECRET_KEY,
     })
