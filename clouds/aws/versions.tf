@@ -1,0 +1,17 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~>6.15.0"
+    }
+
+    null = {
+      source  = "hashicorp/null"
+      version = "~>3.2.4"
+    }
+  }
+}
