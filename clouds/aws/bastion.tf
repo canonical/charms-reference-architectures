@@ -7,7 +7,7 @@
 
 # security group for bastion access
 resource "aws_security_group" "bastion_sg" {
-  vpc_id      = aws_vpc.main_vnet.id
+  vpc_id      = aws_vpc.main_vpc.id
 
   ingress {
     from_port   = 22
@@ -25,12 +25,12 @@ resource "aws_security_group" "bastion_sg" {
     description = "Allow all outbound traffic"
   }
 
-  depends_on = [aws_vpc.main_vnet]
+  depends_on = [aws_vpc.main_vpc]
 }
 
 # Security group for access from bastion to controller subnet
 resource "aws_security_group" "bastion_to_controller_sg" {
-  vpc_id      = aws_vpc.main_vnet.id
+  vpc_id      = aws_vpc.main_vpc.id
 
   ingress {
     from_port       = 22
@@ -48,7 +48,7 @@ resource "aws_security_group" "bastion_to_controller_sg" {
     description = "Allow all outbound traffic"
   }
 
-  depends_on = [aws_vpc.main_vnet]
+  depends_on = [aws_vpc.main_vpc]
 }
 
 
@@ -98,7 +98,7 @@ resource "null_resource" "set_up_bastion_script" {
   provisioner "file" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
       region                 = var.REGION,
-      vpc_id                 = aws_vpc.main_vnet.id,
+      vpc_id                 = aws_vpc.main_vpc.id,
       subnet_id              = aws_subnet.bastion_subnet.id, # revert
       access_key             = var.ACCESS_KEY,
       secret_key             = var.SECRET_KEY,
@@ -117,7 +117,7 @@ resource "null_resource" "set_up_bastion_script" {
     type        = "ssh"
     host        = aws_instance.bastion_host.public_ip
     user        = "ubuntu"
-    private_key = file(var.SSH_KEY)
+    private_key = file(var.SSH_KEY_FILE)
   }
 
   depends_on = [aws_instance.bastion_host]

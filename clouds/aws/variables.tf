@@ -17,12 +17,22 @@ variable "SOURCE_ADDRESSES" {
 }
 
 variable "SSH_KEY" {
-  description = "The name of the public key for SSH access to the bastion"
+  description = "The name of the key for SSH access to the bastion"
   type        = string
   default     = null
   validation {
     condition     = var.SSH_KEY != null
     error_message = "SSH_KEY must be set"
+  }
+}
+
+variable "SSH_KEY_FILE" {
+  description = "The file where the key for SSH access to the bastion can be found"
+  type        = string
+  default     = null
+  validation {
+    condition     = var.SSH_KEY_FILE != null
+    error_message = "SSH_KEY_FILE must be set"
   }
 }
 
