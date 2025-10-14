@@ -14,7 +14,6 @@ This Terraform module facilitates the provisioning of essential AWS infrastructu
 Before using this module, ensure you have the following prerequisites in place:
 
   * **Terraform**: Version `1.0.0` or higher installed on your host machine.
-  * **AWS CLI**: Installed and authenticated with an AWS account that has the necessary permissions to create resources within your target subscription.
 
 ## Module Inputs
 
@@ -37,10 +36,10 @@ The module exposes the following configurable input variables.
 Upon successful application, the module exports the following outputs:
 
 
-| Name             | Description                                                                                                                                                                                                 | Sensitive |
-|:-----------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :-------- |
-| `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.                                                         | No        |
-| `eks_cluster`    | A map containing details of the provisioned EKS cluster: `name`, `cluster_id`, `cluster_endpoint`, and `certificate_authority` (Base64 encoded certificate data required to communicate with your cluster). | Yes       |
+| Name             | Description                                                                                                                                                                                    | Sensitive |
+|:-----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :-------- |
+| `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.                                            | No        |
+| `eks_cluster`    | A map containing details of the provisioned EKS cluster: `name`, `cluster_endpoint`, and `certificate_authority` (Base64 encoded certificate data required to communicate with your cluster).  | Yes       |
 
 ---
 

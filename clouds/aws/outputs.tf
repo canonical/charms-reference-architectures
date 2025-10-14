@@ -13,7 +13,6 @@ output "infrastructure" {
 output "eks_cluster" {
   value = var.EKS_CLUSTER_NAME != "" ? {
     name                   = aws_eks_cluster.eks[0].name
-    cluster_id             = aws_eks_cluster.eks[0].cluster_id
     cluster_endpoint       = aws_eks_cluster.eks[0].endpoint
     certificate_authority  = aws_eks_cluster.eks[0].certificate_authority
   } : null
