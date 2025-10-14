@@ -47,7 +47,43 @@ Upon successful application, the module exports the following outputs:
 
 ## Usage
 
-### Setup the AWS infrastructure
+### 1. Backend Configuration
+
+You can use a separate Terraform module (`clouds/aws/state`) to provision the AWS S3 Storage bucket required for the Terraform state backend.
+
+1. Create the bucket where the terraform state will be saved
+```shell
+pushd clouds/aws/state
+
+terraform init 
+
+terraform plan -out terraform.out \
+    -var="BUCKET_NAME=myDesiredBucketName"  # required
+
+terraform apply terraform.out
+
+popd
+```
+2. Once that's done, update the `backend` section within your `clouds/aws/versions.tf` file to reflect your AWS S3 Storage bucket name you get from the previous step.
+
+Example `clouds/aws/versions.tf` snippet for backend configuration:
+```
+  terraform {
+    ...
+    required_providers {
+      ...
+    }
+    
+    # set up backend configuration to use AWS S3 storage bucket
+    backend "s3" {
+        ...
+        bucket = "my-bucket-name" # TODO: replace with actual bucket name
+        ...
+      }
+  }
+```
+
+### 2. Setup the AWS infrastructure
 
 #### Standalone deployment
 

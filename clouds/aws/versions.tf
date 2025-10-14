@@ -19,4 +19,10 @@ terraform {
       version = "~>3.2.4"
     }
   }
+
+  backend "s3" {
+    bucket = "my-bucket-name" # replace with actual bucket name
+    key    = "state"
+    region = var.REGION
+  }
 }
