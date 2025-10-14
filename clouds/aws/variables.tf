@@ -61,3 +61,20 @@ variable "EKS_CLUSTER_NAME" {
   type        = string
   default     = "eks-cluster" # Set to empty string if you don't want to provision an EKS cluster
 }
+
+variable "PROVISION_BASTION" {
+  description = "Flag to provision the bastion host"
+  type        = bool
+  default     = true
+}
+
+variable "SETUP_LOCAL_HOST" {
+  description = "Flag to initialize the host machine with juju and other tools"
+  type        = bool
+  default     = false
+  validation {
+    # Only if PROVISION_BASTION is false
+    condition     = var.PROVISION_BASTION == false || var.SETUP_LOCAL_HOST == false
+    error_message = "Initialize host can only be set to true if PROVISION_BASTION is false"
+  }
+}
