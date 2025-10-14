@@ -5,10 +5,6 @@
 ## Network infra
 ## ====================================================
 
-locals {
-  availability_zone = "${var.REGION}a"
-}
-
 # --- networks
 resource "aws_vpc" "main_vpc" {
   cidr_block           = "10.0.0.0/16"
@@ -19,21 +15,21 @@ resource "aws_vpc" "main_vpc" {
 resource "aws_subnet" "controller_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = local.availability_zone
+  availability_zone       = "${var.REGION}a"
   map_public_ip_on_launch = false
 }
 
 resource "aws_subnet" "deployments_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.2.0/24"
-  availability_zone       = local.availability_zone
+  availability_zone       = "${var.REGION}b"
   map_public_ip_on_launch = false
 }
 
 resource "aws_subnet" "bastion_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.3.0/24"
-  availability_zone       = local.availability_zone
+  availability_zone       = "${var.REGION}a"
   map_public_ip_on_launch = true
 }
 

@@ -6,6 +6,7 @@ This Terraform module facilitates the provisioning of essential AWS infrastructu
 
   * **Networking Configuration**: Sets up a Virtual Private Cloud (VPC) with distinct subnets for Juju controllers and deployments, ensuring proper network isolation.
   * **Bastion Host Provisioning**: Provisions a secure bastion host for administrative access to the Juju environment.
+  * **Elastic Kubernetes Cluster (EKS) Integration**: Allows for the optional deployment of an EKS cluster, suitable for Juju's Kubernetes integration.
   * **Host Initialization**: Sets up the bastion host machine with Juju and a machine controller.
 
 ## Requirements
@@ -19,14 +20,15 @@ Before using this module, ensure you have the following prerequisites in place:
 
 The module exposes the following configurable input variables.
 
-| Name               | Type           | Description                                                                                                                  | Required | Default          |
-|:-------------------|:---------------|:-----------------------------------------------------------------------------------------------------------------------------|:---------|:-----------------|
-| `REGION`           | `string`       | AWS region where all resources will be deployed (e.g., `eu-central-1`).                                                      | No       | `"eu-central-1"` |
-| `SOURCE_ADDRESSES` | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) to be allowed for inbound NSG rules.                            | Yes      | `null`           |
-| `SSH_KEY`          | `string`       | The AWS SSH private key used to access the bastion host.                                                                     | Yes      | `null`           |
-| `SSH_KEY_FILE`     | `string`       | The file path where the AWS SSH key is located.                                                                              | Yes      | `null`           |
-| `ACCESS_KEY`       | `string`       | The access key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials). | Yes      | `null`           |
-| `SECRET_KEY`       | `string`       | The secret key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials). | Yes      | `null`           |
+| Name               | Type           | Description                                                                                                                               | Required | Default          |
+|:-------------------|:---------------|:------------------------------------------------------------------------------------------------------------------------------------------|:---------|:-----------------|
+| `REGION`           | `string`       | AWS region where all resources will be deployed (e.g., `eu-central-1`).                                                                   | No       | `"eu-central-1"` |
+| `SOURCE_ADDRESSES` | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) to be allowed for inbound NSG rules.                                         | Yes      | `null`           |
+| `SSH_KEY`          | `string`       | The AWS SSH private key used to access the bastion host.                                                                                  | Yes      | `null`           |
+| `SSH_KEY_FILE`     | `string`       | The file path where the AWS SSH key is located.                                                                                           | Yes      | `null`           |
+| `ACCESS_KEY`       | `string`       | The access key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes      | `null`           |
+| `SECRET_KEY`       | `string`       | The secret key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes      | `null`           |
+| `EKS_CLUSTER_NAME` | `string`       | The name of the Elastic Kubernetes (EKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an EKS cluster. | No       | `"eks-cluster"`  |
 
 ---
 
@@ -35,17 +37,18 @@ The module exposes the following configurable input variables.
 Upon successful application, the module exports the following outputs:
 
 
-| Name             | Description                                                                                                                                                   | Sensitive |
-| :--------------- |:--------------------------------------------------------------------------------------------------------------------------------------------------------------| :-------- |
-| `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.           | No        |
+| Name             | Description                                                                                                                                                                                                 | Sensitive |
+|:-----------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :-------- |
+| `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.                                                         | No        |
+| `eks_cluster`    | A map containing details of the provisioned EKS cluster: `name`, `cluster_id`, `cluster_endpoint`, and `certificate_authority` (Base64 encoded certificate data required to communicate with your cluster). | Yes       |
 
 ---
 
 ## Usage
 
-### Setup the azure infrastructure
+### Setup the AWS infrastructure
 
-#### a. Standalone deployment
+#### Standalone deployment
 
 ```shell
 pushd clouds/aws
@@ -59,6 +62,7 @@ terraform plan -out terraform.out \
     -var="SSH_KEY_FILE=~/.ssh/aws-key.pem"        \  # required, the path to your AWS SSH private key to ssh into the Bastion
     -var="ACCESS_KEY=<your-aws-access-key>"       \  # required, the access key for AWS account
     -var="SECRET_KEY=<your-aws-secret-key>"       \  # required, the secret key for AWS account
+    -var="EKS_CLUSTER_NAME=myEKSCluster"          \  # optional, defaults to "eks-cluster", set to "" if you do not want to provision an EKS cluster
 
 terraform apply terraform.out
 

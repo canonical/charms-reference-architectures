@@ -55,3 +55,9 @@ variable "SECRET_KEY" {
     error_message = "SECRET_KEY must be set"
   }
 }
+
+variable "EKS_CLUSTER_NAME" {
+  description = "Name of the EKS cluster. Set to null to skip EKS provisioning."
+  type        = string
+  default     = "eks-cluster" # Set to empty string if you don't want to provision an EKS cluster
+}
