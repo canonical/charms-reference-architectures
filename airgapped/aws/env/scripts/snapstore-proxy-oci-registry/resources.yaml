@@ -53,6 +53,10 @@ applications:
     charm: mongos-k8s
     revision: 30
     channel: 6/edge
+  charmed-etcd:
+    charm: charmed-etcd
+    revision: 109
+    channel: 3.6/edge
 
 # snaps used by the charms
 packages:
@@ -65,3 +69,6 @@ packages:
   - name: charmed-mongodb
     revision: 128
     push_channel: 6/edge
+  - name: charmed-etcd
+    revision: 23
+    push_channel: 3.6/edge
