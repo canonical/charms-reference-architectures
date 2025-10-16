@@ -107,12 +107,3 @@ variable "data-integrator" {
 
   default = {}
 }
-
-variable "remote-state" {
-  description = "Configuration for the remote state"
-  type = object({
-    bucket      = string
-    key         = optional(string, "state")
-    region      = optional(string, "eu-central-1")
-  })
-}

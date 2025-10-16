@@ -63,7 +63,6 @@ Once your Terraform configuration is set up, execute the following commands in y
     terraform plan -out terraform.out \
       -var='etcd={}'                  \
       -var='backups-integrator={"storage_type": "s3", "config": {"access-key": "<my-access-key>", "secret-key": "<my-secret-key>"}}' \
-      -var='remote-state={"bucket": "<myBucketName>", "region": "eu-central-1"}'  # TODO change this to the name of the bucket you've been using to store the state
     ```
 
 3.  **Apply the Configuration**: This command executes the planned actions and deploys the charmed etcd solution.

@@ -1,11 +1,6 @@
 # Copyright 2025 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-data "terraform_remote_state" "infra_state" {
-  backend = "s3"
-  config  = var.remote-state
-}
-
 # requires the juju credentials to be provided as env variables
 provider "juju" {}
 
@@ -25,7 +20,7 @@ resource "juju_model" "k8s_model" {
 }
 
 module "cos" {
-  source  = "git::https://github.com/canonical/observability-stack//terraform/cos-lite"
+  source  = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=2.0a1"
   model   = var.cos.model
   channel = var.cos.channel
 
@@ -36,7 +31,7 @@ module "cos" {
 
 
 module "etcd" {
-  source                   = "git::https://github.com/canonical/charmed-etcd-operator//terraform/product"
+  source                   = "git::https://github.com/canonical/charmed-etcd-operator//terraform/product?ref=3.6/edge"
   etcd                     = var.etcd
   grafana-agent            = var.grafana-agent
   backups-integrator       = var.backups-integrator
