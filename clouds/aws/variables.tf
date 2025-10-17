@@ -1,0 +1,80 @@
+# Copyright 2025 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+variable "REGION" {
+  type    = string
+  default = "eu-central-1"
+}
+
+variable "SOURCE_ADDRESSES" {
+  description = "List of IP addresses allowed to SSH into the bastion host"
+  type        = list(string)
+  default     = null
+  validation {
+    condition     = var.SOURCE_ADDRESSES != null
+    error_message = "SOURCE_ADDRESSES must be set"
+  }
+}
+
+variable "SSH_KEY" {
+  description = "The name of the key for SSH access to the bastion"
+  type        = string
+  default     = null
+  validation {
+    condition     = var.SSH_KEY != null
+    error_message = "SSH_KEY must be set"
+  }
+}
+
+variable "SSH_KEY_FILE" {
+  description = "The file where the key for SSH access to the bastion can be found"
+  type        = string
+  default     = null
+  validation {
+    condition     = var.SSH_KEY_FILE != null
+    error_message = "SSH_KEY_FILE must be set"
+  }
+}
+
+variable "ACCESS_KEY" {
+  description = "Access key for AWS account"
+  type        = string
+  default     = null
+  validation {
+    condition     = var.ACCESS_KEY != null
+    error_message = "ACCESS_KEY must be set"
+  }
+}
+
+variable "SECRET_KEY" {
+  description = "Secret key for AWS account"
+  type        = string
+  default     = null
+  validation {
+    condition     = var.SECRET_KEY != null
+    error_message = "SECRET_KEY must be set"
+  }
+}
+
+variable "EKS_CLUSTER_NAME" {
+  description = "Name of the EKS cluster. Set to null to skip EKS provisioning."
+  type        = string
+  default     = "eks-cluster" # Set to empty string if you don't want to provision an EKS cluster
+}
+
+variable "PROVISION_BASTION" {
+  description = "Flag to provision the bastion host"
+  type        = bool
+  default     = true
+}
+
+variable "SETUP_LOCAL_HOST" {
+  description = "Flag to initialize the host machine with juju and other tools"
+  type        = bool
+  default     = false
+  validation {
+    # Only if PROVISION_BASTION is false
+    condition     = var.PROVISION_BASTION == false || var.SETUP_LOCAL_HOST == false
+    error_message = "Initialize host can only be set to true if PROVISION_BASTION is false"
+  }
+}
