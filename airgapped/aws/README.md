@@ -322,4 +322,3 @@ After completing your dev / testing
 2. The juju version is currently hardcoded to `3.6.5` in many places, it should become parameterizable
 3. Not all resources are tagged
 4. Only the `us-east-1` region is supported, this is due to aws limiting the use of private vpc endpoints to only this region.
-5. The `client-setup.sh` needs to be adapted for linux clients.
