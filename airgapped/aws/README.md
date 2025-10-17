@@ -142,7 +142,6 @@ Open a new terminal tab and ensure your client's VPN public key is passed as a v
 cd deployment/
 tf plan -out terraform.out \
   -var='region=us-east-1' \
-  -var='team=<your-team>' \
   -var='vpn_client_public_key=AC2V/LoZwh/I3iXycPd056SefBT0qmM+6cd9uzgcXC0='
 ```
 
@@ -162,13 +161,13 @@ Enter the VPN Server key's public key (sudo cat /etc/wireguard/server.pub): ABCD
 ```
 To fill the previous prompt, ssh into your VPN instance (using the `admin` key) and paste it there (as shown below).
 ```
-ssh -i admin.key ubuntu@<public_ip_vpn> -t "sudo cat /etc/wireguard/server.pub"
+ssh -i admin.pem ubuntu@<public_ip_vpn> -t "sudo cat /etc/wireguard/server.pub"
 ```
 
 ### 7. Access your bastion:
 Once your local vpn client is configured, you can ssh into your bastion instance using its private IP, using the `admin` key.
 ```
-ssh -i admin.key ubuntu@<private_ip_bastion>
+ssh -i admin.pem ubuntu@<private_ip_bastion>
 ```
 
 ----
@@ -323,4 +322,3 @@ After completing your dev / testing
 2. The juju version is currently hardcoded to `3.6.5` in many places, it should become parameterizable
 3. Not all resources are tagged
 4. Only the `us-east-1` region is supported, this is due to aws limiting the use of private vpc endpoints to only this region.
-5. The `client-setup.sh` needs to be adapted for linux clients.

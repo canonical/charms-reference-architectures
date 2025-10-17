@@ -6,10 +6,12 @@
 
 echo "Installing required dependencies..."
 if [[ "$(uname -s)" == "Darwin" ]]; then
+    wireguard_config_path="/usr/local/etc/wireguard"
     brew install wireguard-tools
 elif [[ -f /etc/os-release ]]; then
     . /etc/os-release
-    if [[ "${ID}" != ubuntu ]]; then
+    if [[ "${ID}" == ubuntu ]]; then
+        wireguard_config_path="/etc/wireguard"
         sudo apt-get install wireguard
     else
         echo "Error: unsupported distro ${NAME}" >&2
@@ -40,7 +42,7 @@ echo -e "\n"
 read -r -p "Enter the VPN Server key's public key (sudo cat /etc/wireguard/server.pub): " vpn_server_public_key
 echo "${vpn_server_public_key}"
 
-cat <<EOF > /usr/local/etc/wireguard/client.conf
+cat <<EOF > ${wireguard_config_path}/client.conf
 [Interface]
 PrivateKey = ${vpn_client_private_key}
 Address = 10.8.0.2/24

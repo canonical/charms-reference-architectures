@@ -28,7 +28,7 @@ data "aws_ami" "ubuntu_22" {
 
 resource "aws_instance" "vpn_instance" {
   ami                         = data.aws_ami.ubuntu_22.id
-  instance_type               = "t3.micro"
+  instance_type               = "t2.medium" # api error Unsupported: Your requested instance type (t3.micro) is not supported in your requested Availability Zone
   subnet_id                   = data.terraform_remote_state.amis_networking.outputs.subnet_vpn
   associate_public_ip_address = true
   key_name                    = "admin"
