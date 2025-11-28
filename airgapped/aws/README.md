@@ -25,7 +25,7 @@ terraform {
 }
 ```
 
-### 2. Create an ubuntu dev account (without 2FA) 
+### 2. Create an Ubuntu One dev account (without 2FA) 
 Use the credentials you created and put them in: `env/scripts/snapstore-proxy-oci-registry/ami-setup-store.sh`
 ```
 EMAIL="<xxxx>@<mail.com>\r"
@@ -33,6 +33,8 @@ PASSWORD="xxxx\r"
 ```
 
 **Note:** This is unsafe, and for the future, we'll propagate them correctly though env variables.
+
+**Warning:** Make sure to log into snapcraft.io with the account to accept the terms and privacy notice, otherwise it cannot be used to register a proxy store.
 
 ### 3. List the snaps, charms and bundle you wish to export
 In `env/scripts/snapstore-proxy-oci-registry/resources.yaml`, list all resources you wish to deploy in an airgapped environment.
