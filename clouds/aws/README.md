@@ -1,35 +1,39 @@
 # AWS Juju Infrastructure Terraform Module
 
-This Terraform module facilitates the provisioning of essential AWS infrastructure components tailored for Juju deployments. It leverages the official [AWS provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) to create and manage the necessary cloud resources.
+This Terraform module facilitates the provisioning of essential AWS infrastructure components tailored for Juju
+deployments. It leverages the official [AWS provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+to create and manage the necessary cloud resources.
 
 ## Features
 
-  * **Networking Configuration**: Sets up a Virtual Private Cloud (VPC) with distinct subnets for Juju controllers and deployments, ensuring proper network isolation.
-  * **Bastion Host Provisioning**: Provisions a secure bastion host for administrative access to the Juju environment.
-  * **Elastic Kubernetes Cluster (EKS) Integration**: Allows for the optional deployment of an EKS cluster, suitable for Juju's Kubernetes integration.
-  * **Host Initialization**: Sets up the bastion host machine with Juju and a machine controller.
+* **Networking Configuration**: Sets up a Virtual Private Cloud (VPC) with distinct subnets for Juju controllers and
+  deployments, ensuring proper network isolation.
+* **Bastion Host Provisioning**: Provisions a secure bastion host for administrative access to the Juju environment.
+* **Elastic Kubernetes Cluster (EKS) Integration**: Allows for the optional deployment of an EKS cluster, suitable for
+  Juju's Kubernetes integration.
+* **Host Initialization**: Sets up the bastion host machine with Juju and a machine controller.
 
 ## Requirements
 
 Before using this module, ensure you have the following prerequisites in place:
 
-  * **Terraform**: Version `1.0.0` or higher installed on your host machine.
+* **Terraform**: Version `1.0.0` or higher installed on your host machine.
 
 ## Module Inputs
 
 The module exposes the following configurable input variables.
 
-| Name                 | Type           | Description                                                                                                                               | Required                                | Default           |
-|:---------------------|:---------------|:------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------|:------------------|
-| `REGION`             | `string`       | AWS region where all resources will be deployed (e.g., `eu-central-1`).                                                                   | No                                      | `"eu-central-1"`  |
-| `SOURCE_ADDRESSES`   | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) to be allowed for inbound NSG rules.                                         | Yes                                     | `null`            |
-| `PROVISION_BASTION`  | `bool`         | Set to `true` to provision a dedicated bastion host for secure access.                                                                    | No                                      | `true`            |
-| `SSH_KEY`            | `string`       | The AWS SSH private key used to access the bastion host.                                                                                  | Yes                                     | `null`            |
-| `SSH_KEY_FILE`       | `string`       | The file path where the AWS SSH key is located.                                                                                           | Yes                                     | `null`            |
-| `ACCESS_KEY`         | `string`       | The access key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes                                     | `null`            |
-| `SECRET_KEY`         | `string`       | The secret key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes                                     | `null`            |
-| `EKS_CLUSTER_NAME`   | `string`       | The name of the Elastic Kubernetes (EKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an EKS cluster. | No                                      | `"eks-cluster"`   |
-| `SETUP_LOCAL_HOST`   | `bool`         | Whether to set up the local host machine with Juju and deploy the Juju controller.                                                        | No                                      | `false`           |
+| Name                | Type           | Description                                                                                                                               | Required | Default          |
+|:--------------------|:---------------|:------------------------------------------------------------------------------------------------------------------------------------------|:---------|:-----------------|
+| `REGION`            | `string`       | AWS region where all resources will be deployed (e.g., `eu-central-1`).                                                                   | No       | `"eu-central-1"` |
+| `SOURCE_ADDRESSES`  | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) to be allowed for inbound NSG rules.                                         | Yes      | `null`           |
+| `PROVISION_BASTION` | `bool`         | Set to `true` to provision a dedicated bastion host for secure access.                                                                    | No       | `true`           |
+| `SSH_KEY`           | `string`       | The AWS SSH private key used to access the bastion host.                                                                                  | Yes      | `null`           |
+| `SSH_KEY_FILE`      | `string`       | The file path where the AWS SSH key is located.                                                                                           | Yes      | `null`           |
+| `ACCESS_KEY`        | `string`       | The access key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes      | `null`           |
+| `SECRET_KEY`        | `string`       | The secret key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes      | `null`           |
+| `EKS_CLUSTER_NAME`  | `string`       | The name of the Elastic Kubernetes (EKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an EKS cluster. | No       | `"eks-cluster"`  |
+| `SETUP_LOCAL_HOST`  | `bool`         | Whether to set up the local host machine with Juju and deploy the Juju controller.                                                        | No       | `false`          |
 
 ---
 
@@ -37,11 +41,10 @@ The module exposes the following configurable input variables.
 
 Upon successful application, the module exports the following outputs:
 
-
-| Name             | Description                                                                                                                                                                                    | Sensitive |
-|:-----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :-------- |
-| `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.                                            | No        |
-| `eks_cluster`    | A map containing details of the provisioned EKS cluster: `name`, `cluster_endpoint`, and `certificate_authority` (Base64 encoded certificate data required to communicate with your cluster).  | Yes       |
+| Name             | Description                                                                                                                                                                                   | Sensitive |
+|:-----------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|
+| `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.                                           | No        |
+| `eks_cluster`    | A map containing details of the provisioned EKS cluster: `name`, `cluster_endpoint`, and `certificate_authority` (Base64 encoded certificate data required to communicate with your cluster). | Yes       |
 
 ---
 
@@ -49,9 +52,11 @@ Upon successful application, the module exports the following outputs:
 
 ### 1. Backend Configuration
 
-You can use a separate Terraform module (`clouds/aws/state`) to provision the AWS S3 Storage bucket required for the Terraform state backend.
+You can use a separate Terraform module (`clouds/aws/state`) to provision the AWS S3 Storage bucket required for the
+Terraform state backend.
 
 1. Create the bucket where the terraform state will be saved
+
 ```shell
 pushd clouds/aws/state
 
@@ -64,9 +69,12 @@ terraform apply terraform.out
 
 popd
 ```
-2. Once that's done, update the `backend` section within your `clouds/aws/versions.tf` file to reflect your AWS S3 Storage bucket name you get from the previous step.
+
+2. Once that's done, update the `backend` section within your `clouds/aws/versions.tf` file to reflect your AWS S3
+   Storage bucket name you get from the previous step.
 
 Example `clouds/aws/versions.tf` snippet for backend configuration:
+
 ```
   terraform {
     ...
@@ -108,7 +116,9 @@ terraform apply terraform.out
 popd
 ```
 
-*Note* For sensitive variables like `ACCESS_KEY`, it's generally better practice to pass them via environment variables (e.g., `TF_VAR_ACCESS_KEY`) or a `terraform.tfvars` file to avoid exposing them directly on the command line in shell history.
+*Note* For sensitive variables like `ACCESS_KEY`, it's generally better practice to pass them via environment
+variables (e.g., `TF_VAR_ACCESS_KEY`) or a `terraform.tfvars` file to avoid exposing them directly on the command line
+in shell history.
 
 ## License
 

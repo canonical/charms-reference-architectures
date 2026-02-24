@@ -21,8 +21,8 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "my-bucket-name" # replace with actual bucket name
+    bucket = "tftest-8923dc35-5e0b-4690-bf96-28cef7ebd099" # replace with actual bucket name
     key    = "state"
-    region = var.REGION
+    region = "eu-central-1" # replace with your region
   }
 }
