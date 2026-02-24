@@ -6,8 +6,8 @@
 ## ====================================================
 
 resource "aws_eks_cluster" "eks" {
-  count   = var.EKS_CLUSTER_NAME != "" ? 1 : 0
-  name    = var.EKS_CLUSTER_NAME
+  count = var.EKS_CLUSTER_NAME != "" ? 1 : 0
+  name  = var.EKS_CLUSTER_NAME
 
   access_config {
     authentication_mode = "API"
@@ -18,7 +18,8 @@ resource "aws_eks_cluster" "eks" {
 
   vpc_config {
     subnet_ids = [
-      aws_subnet.deployments_subnet.id,
+      aws_subnet.deployments_subnet_peers.id,
+      aws_subnet.deployments_subnet_database.id,
       aws_subnet.controller_subnet.id,
     ]
   }
@@ -29,8 +30,8 @@ resource "aws_eks_cluster" "eks" {
 }
 
 resource "aws_iam_role" "cluster" {
-  count   = var.EKS_CLUSTER_NAME != "" ? 1 : 0
-  name    = "eks-cluster"
+  count = var.EKS_CLUSTER_NAME != "" ? 1 : 0
+  name  = "eks-cluster"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -53,3 +54,4 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.cluster[count.index].name
 }
+
