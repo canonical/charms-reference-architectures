@@ -7,7 +7,7 @@ output "infrastructure" {
     controller_subnet_id          = aws_subnet.controller_subnet.id
     deployments_peers_subnet_id   = aws_subnet.deployments_peers_subnet.id
     deployments_clients_subnet_id = aws_subnet.deployments_clients_subnet.id
-    bastion_subnet_id             = try(aws_route_table_association.bastion_internet_connection[0].id, null)
+    bastion_subnet_id             = try(aws_subnet.bastion_subnet[0].id, null)
     bastion_public_ip             = var.PROVISION_BASTION ? aws_instance.bastion_host[0].public_ip : null
   }
 }
