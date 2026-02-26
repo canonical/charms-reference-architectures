@@ -86,7 +86,7 @@ resource "aws_instance" "bastion_host" {
   ami                    = "ami-0a116fa7c861dd5f9" #Ubuntu 24.04
   instance_type          = "t2.medium"
   key_name               = var.SSH_KEY
-  subnet_id              = aws_subnet.bastion_subnet[count.index].id
+  subnet_id              = aws_subnet.public_a.id
   vpc_security_group_ids = [aws_security_group.bastion_sg[count.index].id]
   iam_instance_profile   = aws_iam_instance_profile.bastion_profile[count.index].name
 
