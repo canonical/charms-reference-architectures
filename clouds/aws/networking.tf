@@ -12,6 +12,22 @@ resource "aws_vpc" "main_vpc" {
   enable_dns_support   = true
 }
 
+# --- public subnets (host NAT gateways and bastion)
+
+resource "aws_subnet" "public_a_subnet" {
+  vpc_id                  = aws_vpc.main_vpc.id
+  cidr_block              = "10.0.10.0/24"
+  availability_zone       = "${var.REGION}a"
+  map_public_ip_on_launch = true
+}
+
+resource "aws_subnet" "public_b_subnet" {
+  vpc_id                  = aws_vpc.main_vpc.id
+  cidr_block              = "10.0.11.0/24"
+  availability_zone       = "${var.REGION}b"
+  map_public_ip_on_launch = true
+}
+
 resource "aws_subnet" "controller_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.1.0/24"
@@ -26,85 +42,16 @@ resource "aws_subnet" "deployments_subnet" {
   map_public_ip_on_launch = false
 }
 
-resource "aws_subnet" "bastion_subnet" {
-  count                   = var.PROVISION_BASTION ? 1 : 0
-  vpc_id                  = aws_vpc.main_vpc.id
-  cidr_block              = "10.0.3.0/24"
-  availability_zone       = "${var.REGION}a"
-  map_public_ip_on_launch = true
-}
+
 
 resource "aws_internet_gateway" "internet_gateway" {
   vpc_id = aws_vpc.main_vpc.id
 }
 
 # --- Connect controller_subnet to internet
-# Public IP address
-resource "aws_eip" "controller_nat_gateway_pip" {
-  domain     = "vpc"
-  depends_on = [aws_internet_gateway.internet_gateway]
-}
-
-# NAT Gateway
-resource "aws_nat_gateway" "controller_nat_gateway" {
-  allocation_id = aws_eip.controller_nat_gateway_pip.id
-  subnet_id     = aws_subnet.controller_subnet.id
-}
-
 # Routing table
-resource "aws_route_table" "controller_nat_routing_table" {
+resource "aws_route_table" "public_routing_table" {
   vpc_id = aws_vpc.main_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_nat_gateway.controller_nat_gateway.id
-  }
-
-  depends_on = [aws_nat_gateway.controller_nat_gateway]
-}
-
-# Associate route to subnet
-resource "aws_route_table_association" "controller_nat_internet_connection" {
-  subnet_id      = aws_subnet.controller_subnet.id
-  route_table_id = aws_route_table.controller_nat_routing_table.id
-}
-
-# --- Connect deployments_subnet to internet
-# Public IP address
-resource "aws_eip" "deployments_nat_gateway_pip" {
-  domain     = "vpc"
-  depends_on = [aws_internet_gateway.internet_gateway]
-}
-
-# NAT Gateway
-resource "aws_nat_gateway" "deployments_nat_gateway" {
-  allocation_id = aws_eip.deployments_nat_gateway_pip.id
-  subnet_id     = aws_subnet.deployments_subnet.id
-}
-
-# Routing table
-resource "aws_route_table" "deployments_nat_routing_table" {
-  vpc_id = aws_vpc.main_vpc.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_nat_gateway.deployments_nat_gateway.id
-  }
-
-  depends_on = [aws_nat_gateway.deployments_nat_gateway]
-}
-
-# Associate routing table to subnet
-resource "aws_route_table_association" "deployments_nat_internet_connection" {
-  subnet_id      = aws_subnet.deployments_subnet.id
-  route_table_id = aws_route_table.deployments_nat_routing_table.id
-}
-
-# --- Connect public subnet for bastion host to internet
-# Routing table
-resource "aws_route_table" "bastion_routing_table" {
-  count      = var.PROVISION_BASTION ? 1 : 0
-  vpc_id     = aws_vpc.main_vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -115,8 +62,72 @@ resource "aws_route_table" "bastion_routing_table" {
 }
 
 # Associate route to subnet
-resource "aws_route_table_association" "bastion_internet_connection" {
-  count          = var.PROVISION_BASTION ? 1 : 0
-  subnet_id      = aws_subnet.bastion_subnet[count.index].id
-  route_table_id = aws_route_table.bastion_routing_table[count.index].id
+resource "aws_route_table_association" "public_a_subnet_assoc" {
+  subnet_id      = aws_subnet.public_a_subnet.id
+  route_table_id = aws_route_table.public_routing_table.id
 }
+
+resource "aws_route_table_association" "public_b_subnet_assoc" {
+  subnet_id      = aws_subnet.public_b_subnet.id
+  route_table_id = aws_route_table.public_routing_table.id
+}
+
+# --- Connect public_a_subnet to internet
+# Public IP address
+resource "aws_eip" "public_a_nat_gateway_pip" {
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.internet_gateway]
+}
+
+# --- Connect public_b_subnet to internet
+# Public IP address
+resource "aws_eip" "public_b_nat_gateway_pip" {
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.internet_gateway]
+}
+
+# NAT Gateway
+resource "aws_nat_gateway" "public_a_nat_gateway" {
+  allocation_id = aws_eip.public_a_nat_gateway_pip.id
+  subnet_id     = aws_subnet.public_a_subnet.id
+}
+
+resource "aws_nat_gateway" "public_b_nat_gateway" {
+  allocation_id = aws_eip.public_b_nat_gateway_pip.id
+  subnet_id     = aws_subnet.public_b_subnet.id
+}
+
+# Private routing table
+resource "aws_route_table" "private_a_routing_table" {
+  vpc_id = aws_vpc.main_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.public_a_nat_gateway.id
+  }
+
+  depends_on = [aws_nat_gateway.public_a_nat_gateway]
+}
+
+resource "aws_route_table" "private_b_routing_table" {
+  vpc_id = aws_vpc.main_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.public_b_nat_gateway.id
+  }
+
+  depends_on = [aws_nat_gateway.public_b_nat_gateway]
+}
+
+# Associate routing table to subnet
+resource "aws_route_table_association" "controller_private_assoc" {
+  subnet_id      = aws_subnet.controller_subnet.id
+  route_table_id = aws_route_table.private_a_routing_table.id
+}
+
+resource "aws_route_table_association" "deployment_private_assoc" {
+  subnet_id      = aws_subnet.deployments_subnet.id
+  route_table_id = aws_route_table.private_b_routing_table.id
+}
+

@@ -5,10 +5,25 @@
 ## Provision and set up Bastion Host for juju (Optional)
 ## ====================================================
 
+data "aws_ami" "ubuntu_24" {
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 # security group for bastion access
 resource "aws_security_group" "bastion_sg" {
-  count       = var.PROVISION_BASTION ? 1 : 0
-  vpc_id      = aws_vpc.main_vpc.id
+  count  = var.PROVISION_BASTION ? 1 : 0
+  vpc_id = aws_vpc.main_vpc.id
 
   ingress {
     from_port   = 22
@@ -31,8 +46,8 @@ resource "aws_security_group" "bastion_sg" {
 
 # Security group for access from bastion to controller subnet
 resource "aws_security_group" "bastion_to_controller_sg" {
-  count       = var.PROVISION_BASTION ? 1 : 0
-  vpc_id      = aws_vpc.main_vpc.id
+  count  = var.PROVISION_BASTION ? 1 : 0
+  vpc_id = aws_vpc.main_vpc.id
 
   ingress {
     from_port       = 22
@@ -55,7 +70,7 @@ resource "aws_security_group" "bastion_to_controller_sg" {
 
 
 resource "aws_iam_role" "bastion_role" {
-  count              = var.PROVISION_BASTION ? 1 : 0
+  count = var.PROVISION_BASTION ? 1 : 0
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -77,16 +92,16 @@ resource "aws_iam_role_policy_attachment" "bastion_role_attachment" {
 }
 
 resource "aws_iam_instance_profile" "bastion_profile" {
-  count   = var.PROVISION_BASTION ? 1 : 0
-  role    = aws_iam_role.bastion_role[count.index].name
+  count = var.PROVISION_BASTION ? 1 : 0
+  role  = aws_iam_role.bastion_role[count.index].name
 }
 
 resource "aws_instance" "bastion_host" {
   count                  = var.PROVISION_BASTION ? 1 : 0
-  ami                    = "ami-0a116fa7c861dd5f9" #Ubuntu 24.04
+  ami                    = data.aws_ami.ubuntu_24.id #Ubuntu 24.04
   instance_type          = "t2.medium"
   key_name               = var.SSH_KEY
-  subnet_id              = aws_subnet.bastion_subnet[count.index].id
+  subnet_id              = aws_subnet.public_a_subnet.id
   vpc_security_group_ids = [aws_security_group.bastion_sg[count.index].id]
   iam_instance_profile   = aws_iam_instance_profile.bastion_profile[count.index].name
 
@@ -101,14 +116,14 @@ resource "aws_instance" "bastion_host" {
 }
 
 resource "null_resource" "set_up_bastion_script" {
-  count           = var.PROVISION_BASTION ? 1 : 0
+  count = var.PROVISION_BASTION ? 1 : 0
   provisioner "file" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
-      region                 = var.REGION,
-      vpc_id                 = aws_vpc.main_vpc.id,
-      subnet_id              = aws_subnet.controller_subnet.id,
-      access_key             = var.ACCESS_KEY,
-      secret_key             = var.SECRET_KEY,
+      region     = var.REGION,
+      vpc_id     = aws_vpc.main_vpc.id,
+      subnet_id  = aws_subnet.controller_subnet.id,
+      access_key = var.ACCESS_KEY,
+      secret_key = var.SECRET_KEY,
     })
     destination = "setup-juju-env.sh"
   }
