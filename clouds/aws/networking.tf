@@ -35,9 +35,16 @@ resource "aws_subnet" "controller_subnet" {
   map_public_ip_on_launch = false
 }
 
-resource "aws_subnet" "deployments_subnet" {
+resource "aws_subnet" "deployments_peers_subnet" {
   vpc_id                  = aws_vpc.main_vpc.id
   cidr_block              = "10.0.2.0/24"
+  availability_zone       = "${var.REGION}b"
+  map_public_ip_on_launch = false
+}
+
+resource "aws_subnet" "deployments_clients_subnet" {
+  vpc_id                  = aws_vpc.main_vpc.id
+  cidr_block              = "10.0.3.0/24"
   availability_zone       = "${var.REGION}b"
   map_public_ip_on_launch = false
 }
@@ -126,8 +133,13 @@ resource "aws_route_table_association" "controller_private_assoc" {
   route_table_id = aws_route_table.private_a_routing_table.id
 }
 
-resource "aws_route_table_association" "deployment_private_assoc" {
-  subnet_id      = aws_subnet.deployments_subnet.id
+resource "aws_route_table_association" "deployment_peers_private_assoc" {
+  subnet_id      = aws_subnet.deployments_peers_subnet.id
+  route_table_id = aws_route_table.private_b_routing_table.id
+}
+
+resource "aws_route_table_association" "deployment_clients_private_assoc" {
+  subnet_id      = aws_subnet.deployments_clients_subnet.id
   route_table_id = aws_route_table.private_b_routing_table.id
 }
 
