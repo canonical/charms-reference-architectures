@@ -20,9 +20,11 @@ resource "juju_model" "cos" {
 }
 
 module "cos" {
-  source  = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=2.0a1"
-  model   = var.cos.model
-  channel = var.cos.channel
+  source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
+  model = {
+    uuid = juju_model.cos.uuid
+  }
+  risk = var.cos.risk
 
   depends_on = [juju_model.cos]
 }
@@ -42,38 +44,6 @@ resource "juju_application" "self_signed_certificates" {
   units       = 1
 }
 
-resource "juju_application" "etcd" {
-  charm {
-    name     = "charmed-etcd"
-    channel  = var.etcd.channel
-    revision = var.etcd.revision
-    base     = var.etcd.base
-  }
-
-  name               = var.etcd.app_name
-  config             = var.etcd.config
-  constraints        = var.etcd.constraints
-  model_uuid         = juju_model.mongodb.uuid
-  storage_directives = var.etcd.storage_directives
-  units              = var.etcd.units
-}
-
-resource "juju_application" "vault" {
-  charm {
-    name     = "vault"
-    channel  = var.vault.channel
-    revision = var.vault.revision
-    base     = var.vault.base
-  }
-
-  name               = var.vault.app_name
-  config             = var.vault.config
-  constraints        = var.vault.constraints
-  model_uuid         = juju_model.mongodb.uuid
-  storage_directives = var.vault.storage_directives
-  units              = var.vault.units
-}
-
 resource "juju_application" "opentelemetry_collector" {
   charm {
     name     = "opentelemetry-collector"
@@ -89,48 +59,8 @@ resource "juju_application" "opentelemetry_collector" {
   units       = 0
 }
 
-resource "juju_integration" "etcd_peer_certificates" {
-  model_uuid = juju_model.mongodb.uuid
-
-  application {
-    name     = juju_application.etcd.name
-    endpoint = "peer-certificates"
-  }
-  application {
-    name     = juju_application.self_signed_certificates.name
-    endpoint = "certificates"
-  }
-}
-
-resource "juju_integration" "etcd_client_certificates" {
-  model_uuid = juju_model.mongodb.uuid
-
-  application {
-    name     = juju_application.etcd.name
-    endpoint = "client-certificates"
-  }
-  application {
-    name     = juju_application.self_signed_certificates.name
-    endpoint = "certificates"
-  }
-}
-
-resource "juju_integration" "vault_certificates" {
-  model_uuid = juju_model.mongodb.uuid
-
-  application {
-    name     = juju_application.vault.name
-    endpoint = "certificates"
-  }
-  application {
-    name     = juju_application.self_signed_certificates.name
-    endpoint = "certificates"
-  }
-}
-
 module "mongodb_replica_set" {
-  # TODO: change this ref to 8/edge after DPE-10290-rs is merged.
-  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/replica_set?ref=DPE-10290-rs"
+  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/replica_set?ref=8/edge"
 
   mongodb = merge(var.mongodb, {
     model_uuid = juju_model.mongodb.uuid
@@ -141,14 +71,15 @@ module "mongodb_replica_set" {
   data_integrator = merge(var.data_integrator, {
     model_uuid = juju_model.mongodb.uuid
   })
-  backups_integrator = var.backups_integrator == null ? null : merge(var.backups_integrator, {
-    model_uuid = juju_model.mongodb.uuid
+  backups_integrator = var.s3_integrator == null ? null : merge(var.s3_integrator, {
+    model_uuid   = juju_model.mongodb.uuid
+    storage_type = "s3"
   })
   s3_access_key          = var.s3_access_key
   s3_secret_key          = var.s3_secret_key
-  gcs_secret_key         = var.gcs_secret_key
   tls_client_private_key = var.tls_client_private_key
   tls_peer_private_key   = var.tls_peer_private_key
+  logging_config         = var.logging_config
 
   client_certificates_integration = {
     kind     = "endpoint"
@@ -160,26 +91,11 @@ module "mongodb_replica_set" {
     name     = juju_application.self_signed_certificates.name
     endpoint = "certificates"
   }
-  etcd_integration = {
-    kind     = "endpoint"
-    name     = juju_application.etcd.name
-    endpoint = "etcd-client"
-  }
-  vault_kv_integration = {
-    kind     = "endpoint"
-    name     = juju_application.vault.name
-    endpoint = "vault-kv"
-  }
+  vault_kv_integration = var.vault_kv_integration
   cos_agent_integration = {
     name     = juju_application.opentelemetry_collector.name
     endpoint = "cos-agent"
   }
-
-  depends_on = [
-    juju_integration.etcd_client_certificates,
-    juju_integration.etcd_peer_certificates,
-    juju_integration.vault_certificates,
-  ]
 }
 
 resource "juju_integration" "opentelemetry_collector_prometheus" {
@@ -213,14 +129,4 @@ resource "juju_integration" "opentelemetry_collector_dashboards" {
   application {
     offer_url = module.cos.offers.grafana_dashboards.url
   }
-}
-
-output "applications" {
-  description = "Applications deployed by the solution."
-  value = merge(module.mongodb_replica_set.components, {
-    etcd                     = juju_application.etcd.name
-    opentelemetry_collector  = juju_application.opentelemetry_collector.name
-    self_signed_certificates = juju_application.self_signed_certificates.name
-    vault                    = juju_application.vault.name
-  })
 }

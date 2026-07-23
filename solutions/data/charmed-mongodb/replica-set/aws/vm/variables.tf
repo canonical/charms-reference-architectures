@@ -13,7 +13,7 @@ variable "cos" {
     model      = optional(string, "cos")
     cloud      = optional(string, "k8s")
     credential = optional(string, "k8s")
-    channel    = optional(string, null)
+    risk       = optional(string, "stable")
   })
   default = {}
 }
@@ -63,35 +63,22 @@ variable "data_integrator" {
   default = {}
 }
 
-variable "backups_integrator" {
-  description = "Optional S3 or GCS backup integrator configuration."
+variable "s3_integrator" {
+  description = "Optional S3 backup integrator configuration."
   type = object({
-    storage_type = optional(string, "s3")
-    config       = map(string)
-    channel      = optional(string, null)
-    base         = optional(string, "ubuntu@24.04")
-    revision     = optional(number, null)
-    constraints  = optional(string, "arch=amd64")
-    machines     = optional(set(string), [])
+    config      = map(string)
+    channel     = optional(string, "2/stable")
+    base        = optional(string, "ubuntu@24.04")
+    revision    = optional(number, null)
+    constraints = optional(string, "arch=amd64")
+    machines    = optional(set(string), [])
   })
   default = null
 
   validation {
-    condition     = var.backups_integrator == null || contains(["s3", "gcs"], var.backups_integrator.storage_type)
-    error_message = "backups_integrator.storage_type must be either \"s3\" or \"gcs\"."
-  }
-
-  validation {
-    condition     = var.backups_integrator == null || length(var.backups_integrator.machines) <= 1
+    condition     = var.s3_integrator == null || length(var.s3_integrator.machines) <= 1
     error_message = "The backup integrator can be placed on at most one machine."
   }
-}
-
-variable "gcs_secret_key" {
-  description = "Optional GCP service-account JSON key used by the GCS integrator."
-  type        = string
-  sensitive   = true
-  default     = null
 }
 
 variable "s3_access_key" {
@@ -135,36 +122,6 @@ variable "self_signed_certificates" {
   default = {}
 }
 
-variable "etcd" {
-  description = "Charmed etcd application configuration for MongoDB rolling operations."
-  type = object({
-    app_name           = optional(string, "charmed-etcd")
-    channel            = optional(string, "3.6/stable")
-    revision           = optional(number, null)
-    base               = optional(string, "ubuntu@24.04")
-    constraints        = optional(string, "arch=amd64")
-    config             = optional(map(string), {})
-    storage_directives = optional(map(string), {})
-    units              = optional(number, 3)
-  })
-  default = {}
-}
-
-variable "vault" {
-  description = "Vault application configuration for MongoDB encryption at rest."
-  type = object({
-    app_name           = optional(string, "vault")
-    channel            = optional(string, "1.19/stable")
-    revision           = optional(number, null)
-    base               = optional(string, "ubuntu@24.04")
-    constraints        = optional(string, "arch=amd64")
-    config             = optional(map(string), {})
-    storage_directives = optional(map(string), {})
-    units              = optional(number, 1)
-  })
-  default = {}
-}
-
 variable "opentelemetry_collector" {
   description = "OpenTelemetry Collector subordinate application configuration."
   type = object({
@@ -176,4 +133,50 @@ variable "opentelemetry_collector" {
     config      = optional(map(string), {})
   })
   default = {}
+}
+
+
+variable "vault_kv_integration" {
+  description = "Existing Vault KV integration target for MongoDB encryption at rest. Use kind = \"endpoint\" with name/endpoint for a Vault application in the MongoDB model, or kind = \"offer\" with url for a cross-model offer."
+  type = object({
+    kind     = string
+    name     = optional(string, null)
+    endpoint = optional(string, null)
+    url      = optional(string, null)
+  })
+
+  validation {
+    condition     = contains(["endpoint", "offer"], var.vault_kv_integration.kind)
+    error_message = "vault_kv_integration.kind must be either \"endpoint\" or \"offer\"."
+  }
+
+  validation {
+    condition = (
+      var.vault_kv_integration.kind != "endpoint" ||
+      (
+        var.vault_kv_integration.name != null &&
+        var.vault_kv_integration.name != "" &&
+        var.vault_kv_integration.endpoint != null &&
+        var.vault_kv_integration.endpoint != ""
+      )
+    )
+    error_message = "For kind = \"endpoint\", both name and endpoint must be provided."
+  }
+
+  validation {
+    condition = (
+      var.vault_kv_integration.kind != "offer" ||
+      (
+        var.vault_kv_integration.url != null &&
+        var.vault_kv_integration.url != ""
+      )
+    )
+    error_message = "For kind = \"offer\", url must be provided."
+  }
+}
+
+variable "logging_config" {
+  description = "Logging configuration used by the MongoDB replica-set module."
+  type        = string
+  default     = "<root>=INFO"
 }
