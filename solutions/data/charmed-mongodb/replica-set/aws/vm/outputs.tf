@@ -28,8 +28,8 @@ output "models" {
         }
       )
     }
-    (juju_model.cos.uuid) = {
-      model_uuid = juju_model.cos.uuid
+    (module.cos.model_uuid) = {
+      model_uuid = module.cos.model_uuid
       components = module.cos.components
     }
   })

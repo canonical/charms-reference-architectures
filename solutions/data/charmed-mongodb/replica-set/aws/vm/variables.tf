@@ -2,7 +2,7 @@
 # See LICENSE file for licensing details.
 
 variable "mongodb_model" {
-  description = "Name of the AWS VM model."
+  description = "Name of the AWS VM model that will be created by the module."
   type        = string
   default     = "mongodb"
 }
@@ -137,21 +137,22 @@ variable "opentelemetry_collector" {
 
 
 variable "vault_kv_integration" {
-  description = "Existing Vault KV integration target for MongoDB encryption at rest. Use kind = \"endpoint\" with name/endpoint for a Vault application in the MongoDB model, or kind = \"offer\" with url for a cross-model offer."
+  description = "Optional existing Vault KV integration target for MongoDB encryption at rest. Use kind = \"endpoint\" with name/endpoint for a Vault application in the MongoDB model, or kind = \"offer\" with url for a cross-model offer."
   type = object({
     kind     = string
     name     = optional(string, null)
     endpoint = optional(string, null)
     url      = optional(string, null)
   })
+  default = null
 
   validation {
-    condition     = contains(["endpoint", "offer"], var.vault_kv_integration.kind)
+    condition     = var.vault_kv_integration == null ? true : contains(["endpoint", "offer"], var.vault_kv_integration.kind)
     error_message = "vault_kv_integration.kind must be either \"endpoint\" or \"offer\"."
   }
 
   validation {
-    condition = (
+    condition = var.vault_kv_integration == null ? true : (
       var.vault_kv_integration.kind != "endpoint" ||
       (
         var.vault_kv_integration.name != null &&
@@ -164,7 +165,7 @@ variable "vault_kv_integration" {
   }
 
   validation {
-    condition = (
+    condition = var.vault_kv_integration == null ? true : (
       var.vault_kv_integration.kind != "offer" ||
       (
         var.vault_kv_integration.url != null &&

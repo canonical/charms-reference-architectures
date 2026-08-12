@@ -11,22 +11,16 @@ resource "juju_model" "mongodb" {
   }
 }
 
-resource "juju_model" "cos" {
-  name       = var.cos.model
-  credential = var.cos.credential
-  cloud {
-    name = var.cos.cloud
-  }
-}
-
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
   model = {
-    uuid = juju_model.cos.uuid
+    name       = var.cos.model
+    credential = var.cos.credential
+    cloud = {
+      name = var.cos.cloud
+    }
   }
   risk = var.cos.risk
-
-  depends_on = [juju_model.cos]
 }
 
 resource "juju_application" "self_signed_certificates" {
@@ -64,17 +58,20 @@ module "mongodb_replica_set" {
 
   mongodb = merge(var.mongodb, {
     model_uuid = juju_model.mongodb.uuid
-    config = merge(var.mongodb.config, {
-      "enable-encryption-at-rest" = "true"
-    })
   })
   data_integrator = merge(var.data_integrator, {
     model_uuid = juju_model.mongodb.uuid
   })
-  backups_integrator = var.s3_integrator == null ? null : merge(var.s3_integrator, {
+  backups_integrator = var.s3_integrator == null ? null : {
+    config       = var.s3_integrator.config
+    channel      = var.s3_integrator.channel
+    base         = var.s3_integrator.base
+    revision     = var.s3_integrator.revision
+    constraints  = var.s3_integrator.constraints
+    machines     = var.s3_integrator.machines
     model_uuid   = juju_model.mongodb.uuid
     storage_type = "s3"
-  })
+  }
   s3_access_key          = var.s3_access_key
   s3_secret_key          = var.s3_secret_key
   tls_client_private_key = var.tls_client_private_key
