@@ -67,11 +67,11 @@ variable "s3_integrator" {
   description = "Optional S3 backup integrator configuration."
   type = object({
     config      = map(string)
-    channel     = optional(string, "2/stable")
     base        = optional(string, "ubuntu@24.04")
-    revision    = optional(number, null)
+    channel     = optional(string, "2/stable")
     constraints = optional(string, "arch=amd64")
     machines    = optional(set(string), [])
+    revision    = optional(number, null)
   })
   default = null
 
@@ -80,6 +80,34 @@ variable "s3_integrator" {
     error_message = "The backup integrator can be placed on at most one machine."
   }
 }
+
+variable "self_signed_certificates" {
+  description = "Self-signed-certificates application configuration."
+  type = object({
+    app_name    = optional(string, "self-signed-certificates")
+    channel     = optional(string, "1/stable")
+    revision    = optional(number, null)
+    base        = optional(string, "ubuntu@24.04")
+    constraints = optional(string, "arch=amd64")
+    config      = optional(map(string), { ca-common-name = "MongoDB CA" })
+  })
+  default = {}
+}
+
+variable "opentelemetry_collector" {
+  description = "OpenTelemetry Collector subordinate application configuration."
+  type = object({
+    app_name    = optional(string, "opentelemetry-collector")
+    base        = optional(string, "ubuntu@24.04")
+    channel     = optional(string, "2/stable")
+    config      = optional(map(string), {})
+    revision    = optional(number, null)
+  })
+  default = {}
+}
+
+
+# Configuration variables
 
 variable "s3_access_key" {
   description = "Optional AWS S3 access key."
@@ -109,32 +137,7 @@ variable "tls_peer_private_key" {
   default     = null
 }
 
-variable "self_signed_certificates" {
-  description = "Self-signed-certificates application configuration."
-  type = object({
-    app_name    = optional(string, "self-signed-certificates")
-    channel     = optional(string, "1/stable")
-    revision    = optional(number, null)
-    base        = optional(string, "ubuntu@24.04")
-    constraints = optional(string, "arch=amd64")
-    config      = optional(map(string), { ca-common-name = "MongoDB CA" })
-  })
-  default = {}
-}
-
-variable "opentelemetry_collector" {
-  description = "OpenTelemetry Collector subordinate application configuration."
-  type = object({
-    app_name    = optional(string, "opentelemetry-collector")
-    channel     = optional(string, "2/stable")
-    revision    = optional(number, null)
-    base        = optional(string, "ubuntu@24.04")
-    constraints = optional(string, "arch=amd64")
-    config      = optional(map(string), {})
-  })
-  default = {}
-}
-
+# Integration variables
 
 variable "vault_kv_integration" {
   description = "Optional existing Vault KV integration target for MongoDB encryption at rest. Use kind = \"endpoint\" with name/endpoint for a Vault application in the MongoDB model, or kind = \"offer\" with url for a cross-model offer."

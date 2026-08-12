@@ -46,11 +46,9 @@ resource "juju_application" "opentelemetry_collector" {
     base     = var.opentelemetry_collector.base
   }
 
-  name        = var.opentelemetry_collector.app_name
-  config      = var.opentelemetry_collector.config
-  constraints = var.opentelemetry_collector.constraints
-  model_uuid  = juju_model.mongodb.uuid
-  units       = 0
+  name       = var.opentelemetry_collector.app_name
+  config     = var.opentelemetry_collector.config
+  model_uuid = juju_model.mongodb.uuid
 }
 
 module "mongodb_replica_set" {
@@ -88,11 +86,15 @@ module "mongodb_replica_set" {
     name     = juju_application.self_signed_certificates.name
     endpoint = "certificates"
   }
-  vault_kv_integration = var.vault_kv_integration
   cos_agent_integration = {
     name     = juju_application.opentelemetry_collector.name
     endpoint = "cos-agent"
   }
+  vault_kv_integration = var.vault_kv_integration
+
+  depends_on = [
+    juju_model.mongodb,
+  ]
 }
 
 resource "juju_integration" "opentelemetry_collector_prometheus" {
