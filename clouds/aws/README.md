@@ -46,6 +46,7 @@ The module exposes the following configurable input variables.
 | `ACCESS_KEY`         | `string`       | The access key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes                                     | `null`            |
 | `SECRET_KEY`         | `string`       | The secret key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes                                     | `null`            |
 | `EKS_CLUSTER_NAME`   | `string`       | The name of the Elastic Kubernetes (EKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an EKS cluster. | No                                      | `"eks-cluster"`   |
+| `EKS_NODE_INSTANCE_TYPES` | `list(string)` | EC2 instance types used by the EKS managed node group. | No | `["m6i.xlarge"]` |
 | `SETUP_LOCAL_HOST`   | `bool`         | Whether to set up the local host machine with Juju and deploy the Juju controller.                                                        | No                                      | `false`           |
 
 ---
@@ -58,7 +59,7 @@ Upon successful application, the module exports the following outputs:
 | Name             | Description                                                                                                                                                                                    | Sensitive |
 |:-----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :-------- |
 | `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.                                            | No        |
-| `eks_cluster`    | A map containing details of the provisioned EKS cluster: `name`, `cluster_endpoint`, and `certificate_authority` (Base64 encoded certificate data required to communicate with your cluster).  | Yes       |
+| `eks_cluster`    | A map containing details of the provisioned EKS cluster and managed node group: `name`, `cluster_endpoint`, `certificate_authority`, `node_group_name`, and `node_role_arn`. | Yes |
 
 ---
 
@@ -129,6 +130,7 @@ terraform plan -out terraform.out \
   -var="SSH_KEY=aws-key" \
   -var="SSH_KEY_FILE=/home/example/.ssh/aws-key.pem" \
   -var="EKS_CLUSTER_NAME=my-eks-cluster" \
+  -var='EKS_NODE_INSTANCE_TYPES=["m6i.xlarge"]' \
   -var="SETUP_LOCAL_HOST=false"
 
 terraform apply terraform.out
@@ -138,7 +140,7 @@ popd
 
 `SOURCE_ADDRESSES`, `SSH_KEY`, and `SSH_KEY_FILE` are required by the current variable definitions even when their associated optional feature is disabled. Use an absolute path for `SSH_KEY_FILE`; Terraform does not expand `~` in every context.
 
-EKS control-plane creation commonly takes 10–15 minutes and can sometimes take up to 30 minutes. Repeated `Still creating...` messages during that interval are expected.
+EKS control-plane and managed-node-group creation commonly takes 15–25 minutes and can sometimes take longer. Repeated `Still creating...` messages during that interval are expected. The default node group creates three `m6i.xlarge` workers across the module's private subnets.
 
 ### EKS access and Juju
 

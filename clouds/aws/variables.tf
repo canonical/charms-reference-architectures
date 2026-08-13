@@ -62,6 +62,17 @@ variable "EKS_CLUSTER_NAME" {
   default     = "eks-cluster" # Set to empty string if you don't want to provision an EKS cluster
 }
 
+variable "EKS_NODE_INSTANCE_TYPES" {
+  description = "EC2 instance types used by the EKS managed node group."
+  type        = list(string)
+  default     = ["m6i.xlarge"]
+
+  validation {
+    condition     = length(var.EKS_NODE_INSTANCE_TYPES) > 0
+    error_message = "EKS_NODE_INSTANCE_TYPES must contain at least one EC2 instance type."
+  }
+}
+
 variable "PROVISION_BASTION" {
   description = "Flag to provision the bastion host"
   type        = bool
