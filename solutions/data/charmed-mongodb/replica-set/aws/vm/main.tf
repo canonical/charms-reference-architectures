@@ -9,6 +9,9 @@ resource "juju_model" "mongodb" {
   cloud {
     name = "aws"
   }
+  config = var.vpc_id == null ? {} : {
+    "vpc-id" = var.vpc_id
+  }
 }
 
 module "cos" {
@@ -23,19 +26,30 @@ module "cos" {
   risk = var.cos.risk
 }
 
-resource "juju_application" "self_signed_certificates" {
-  charm {
-    name     = "self-signed-certificates"
-    channel  = var.self_signed_certificates.channel
-    revision = var.self_signed_certificates.revision
-    base     = var.self_signed_certificates.base
-  }
+module "ldap" {
+  source = "./modules/ldap"
 
-  name        = var.self_signed_certificates.app_name
+  model                    = var.ldap.model
+  cloud                    = var.ldap.cloud
+  credential               = var.ldap.credential
+  self_signed_certificates = var.ldap.self_signed_certificates
+  glauth                   = var.ldap.glauth
+  glauth_utils             = var.ldap.glauth_utils
+  traefik                  = var.ldap.traefik
+  postgresql               = var.ldap.postgresql
+}
+
+module "self_signed_certificates" {
+  source = "git::https://github.com/canonical/self-signed-certificates-operator//terraform?ref=main"
+
+  model_uuid  = juju_model.mongodb.uuid
+  app_name    = var.self_signed_certificates.app_name
+  base        = var.self_signed_certificates.base
+  channel     = var.self_signed_certificates.channel
+  revision    = var.self_signed_certificates.revision
   config      = var.self_signed_certificates.config
   constraints = var.self_signed_certificates.constraints
-  model_uuid  = juju_model.mongodb.uuid
-  units       = 1
+  units       = var.self_signed_certificates.units
 }
 
 resource "juju_application" "opentelemetry_collector" {
@@ -78,17 +92,25 @@ module "mongodb_replica_set" {
 
   client_certificates_integration = {
     kind     = "endpoint"
-    name     = juju_application.self_signed_certificates.name
-    endpoint = "certificates"
+    name     = module.self_signed_certificates.app_name
+    endpoint = module.self_signed_certificates.provides["certificates"]
   }
   peer_certificates_integration = {
     kind     = "endpoint"
-    name     = juju_application.self_signed_certificates.name
-    endpoint = "certificates"
+    name     = module.self_signed_certificates.app_name
+    endpoint = module.self_signed_certificates.provides["certificates"]
   }
   cos_agent_integration = {
     name     = juju_application.opentelemetry_collector.name
     endpoint = "cos-agent"
+  }
+  ldap_integration = {
+    kind = "offer"
+    url  = module.ldap.offers.ldap.url
+  }
+  ldap_certificate_transfer_integration = {
+    kind = "offer"
+    url  = module.ldap.offers.send_ca_cert.url
   }
   vault_kv_integration = var.vault_kv_integration
 

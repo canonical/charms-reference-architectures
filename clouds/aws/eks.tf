@@ -10,7 +10,8 @@ resource "aws_eks_cluster" "eks" {
   name  = var.EKS_CLUSTER_NAME
 
   access_config {
-    authentication_mode = "API"
+    authentication_mode                         = "API"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
   role_arn = aws_iam_role.cluster[count.index].arn
@@ -54,4 +55,3 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.cluster[count.index].name
 }
-

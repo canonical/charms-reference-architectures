@@ -21,7 +21,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "tf-bucket-for-mongo2" # replace with actual bucket name
+    bucket = "mythirdbucket-992382360234-eu-central-1" # replace with actual bucket name
     key    = "state"
     region = "eu-central-1"
   }

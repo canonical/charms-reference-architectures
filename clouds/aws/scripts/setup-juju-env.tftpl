@@ -7,7 +7,7 @@ sudo apt upgrade -y
 
 # Install Juju
 echo "Installing juju..."
-sudo snap install juju --classic --channel=3.6
+sudo snap install juju --channel=3.6
 echo "Initializing juju..."
 sudo -u ubuntu bash -c "mkdir -p ~/.local/share/juju"
 
@@ -74,7 +74,7 @@ else
     KUBECONFIG=/home/ubuntu/.kube/config \
     AWS_ACCESS_KEY_ID="${access_key}" \
     AWS_SECRET_ACCESS_KEY="${secret_key}" \
-    /snap/bin/juju add-k8s k8s --client --controller aws
+    /snap/juju/current/bin/juju add-k8s k8s --client --controller aws
 fi
 
 echo "Juju environment setup complete."
