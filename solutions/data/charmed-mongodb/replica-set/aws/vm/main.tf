@@ -91,9 +91,18 @@ module "mongodb_replica_set" {
     name     = juju_application.opentelemetry_collector.name
     endpoint = "cos-agent"
   }
-  ldap_integration                      = var.ldap_integration
-  ldap_certificate_transfer_integration = var.ldap_certificate_transfer_integration
-  vault_kv_integration                  = var.vault_kv_integration
+  ldap_integration = var.ldap_integration == null ? null : {
+    kind = "offer"
+    url  = var.ldap_integration.url
+  }
+  ldap_certificate_transfer_integration = var.ldap_certificate_transfer_integration == null ? null : {
+    kind = "offer"
+    url  = var.ldap_certificate_transfer_integration.url
+  }
+  vault_kv_integration = var.vault_kv_integration == null ? null : {
+    kind = "offer"
+    url  = var.vault_kv_integration.url
+  }
 
   depends_on = [
     juju_model.mongodb,

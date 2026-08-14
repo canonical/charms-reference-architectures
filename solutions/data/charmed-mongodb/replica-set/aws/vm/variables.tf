@@ -152,122 +152,41 @@ variable "tls_peer_private_key" {
 # Integration variables
 
 variable "ldap_integration" {
-  description = "Optional existing LDAP integration target. Must be configured together with ldap_certificate_transfer_integration. Use kind = \"endpoint\" with name/endpoint for an LDAP application in the MongoDB model, or kind = \"offer\" with url for a cross-model offer."
+  description = "Optional existing LDAP offer. Must be configured together with ldap_certificate_transfer_integration."
   type = object({
-    kind     = string
-    name     = optional(string, null)
-    endpoint = optional(string, null)
-    url      = optional(string, null)
+    url = string
   })
   default = null
 
   validation {
-    condition     = var.ldap_integration == null ? true : contains(["endpoint", "offer"], var.ldap_integration.kind)
-    error_message = "ldap_integration.kind must be either \"endpoint\" or \"offer\"."
-  }
-
-  validation {
-    condition = var.ldap_integration == null ? true : (
-      var.ldap_integration.kind != "endpoint" ||
-      (
-        var.ldap_integration.name != null &&
-        var.ldap_integration.name != "" &&
-        var.ldap_integration.endpoint != null &&
-        var.ldap_integration.endpoint != ""
-      )
-    )
-    error_message = "For kind = \"endpoint\", both name and endpoint must be provided."
-  }
-
-  validation {
-    condition = var.ldap_integration == null ? true : (
-      var.ldap_integration.kind != "offer" ||
-      (
-        var.ldap_integration.url != null &&
-        var.ldap_integration.url != ""
-      )
-    )
-    error_message = "For kind = \"offer\", url must be provided."
+    condition     = var.ldap_integration == null ? true : var.ldap_integration.url != ""
+    error_message = "ldap_integration.url must not be empty."
   }
 }
 
 variable "ldap_certificate_transfer_integration" {
-  description = "Optional existing LDAP certificate transfer integration target. Must be configured together with ldap_integration. Use kind = \"endpoint\" with name/endpoint for an application in the MongoDB model, or kind = \"offer\" with url for a cross-model offer."
+  description = "Optional existing LDAP certificate transfer offer. Must be configured together with ldap_integration."
   type = object({
-    kind     = string
-    name     = optional(string, null)
-    endpoint = optional(string, null)
-    url      = optional(string, null)
+    url = string
   })
   default = null
 
   validation {
-    condition     = var.ldap_certificate_transfer_integration == null ? true : contains(["endpoint", "offer"], var.ldap_certificate_transfer_integration.kind)
-    error_message = "ldap_certificate_transfer_integration.kind must be either \"endpoint\" or \"offer\"."
-  }
-
-  validation {
-    condition = var.ldap_certificate_transfer_integration == null ? true : (
-      var.ldap_certificate_transfer_integration.kind != "endpoint" ||
-      (
-        var.ldap_certificate_transfer_integration.name != null &&
-        var.ldap_certificate_transfer_integration.name != "" &&
-        var.ldap_certificate_transfer_integration.endpoint != null &&
-        var.ldap_certificate_transfer_integration.endpoint != ""
-      )
-    )
-    error_message = "For kind = \"endpoint\", both name and endpoint must be provided."
-  }
-
-  validation {
-    condition = var.ldap_certificate_transfer_integration == null ? true : (
-      var.ldap_certificate_transfer_integration.kind != "offer" ||
-      (
-        var.ldap_certificate_transfer_integration.url != null &&
-        var.ldap_certificate_transfer_integration.url != ""
-      )
-    )
-    error_message = "For kind = \"offer\", url must be provided."
+    condition     = var.ldap_certificate_transfer_integration == null ? true : var.ldap_certificate_transfer_integration.url != ""
+    error_message = "ldap_certificate_transfer_integration.url must not be empty."
   }
 }
 
 variable "vault_kv_integration" {
-  description = "Optional existing Vault KV integration target for MongoDB encryption at rest. Use kind = \"endpoint\" with name/endpoint for a Vault application in the MongoDB model, or kind = \"offer\" with url for a cross-model offer."
+  description = "Optional existing Vault KV offer for MongoDB encryption at rest."
   type = object({
-    kind     = string
-    name     = optional(string, null)
-    endpoint = optional(string, null)
-    url      = optional(string, null)
+    url = string
   })
   default = null
 
   validation {
-    condition     = var.vault_kv_integration == null ? true : contains(["endpoint", "offer"], var.vault_kv_integration.kind)
-    error_message = "vault_kv_integration.kind must be either \"endpoint\" or \"offer\"."
-  }
-
-  validation {
-    condition = var.vault_kv_integration == null ? true : (
-      var.vault_kv_integration.kind != "endpoint" ||
-      (
-        var.vault_kv_integration.name != null &&
-        var.vault_kv_integration.name != "" &&
-        var.vault_kv_integration.endpoint != null &&
-        var.vault_kv_integration.endpoint != ""
-      )
-    )
-    error_message = "For kind = \"endpoint\", both name and endpoint must be provided."
-  }
-
-  validation {
-    condition = var.vault_kv_integration == null ? true : (
-      var.vault_kv_integration.kind != "offer" ||
-      (
-        var.vault_kv_integration.url != null &&
-        var.vault_kv_integration.url != ""
-      )
-    )
-    error_message = "For kind = \"offer\", url must be provided."
+    condition     = var.vault_kv_integration == null ? true : var.vault_kv_integration.url != ""
+    error_message = "vault_kv_integration.url must not be empty."
   }
 }
 

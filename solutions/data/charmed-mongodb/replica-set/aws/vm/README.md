@@ -66,9 +66,9 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `logging_config` | Logging configuration used by the MongoDB replica-set module | `string` | `"<root>=INFO"` | no |
 | `self_signed_certificates` | Self-signed-certificates application configuration | <pre>object({<br/>  app_name    = optional(string, "self-signed-certificates")<br/>  channel     = optional(string, "1/stable")<br/>  revision    = optional(number, null)<br/>  base        = optional(string, "ubuntu@24.04")<br/>  constraints = optional(string, "arch=amd64")<br/>  config      = optional(map(string), { ca-common-name = "MongoDB CA" })<br/>  units       = optional(number, 1)<br/>})</pre> | `{}` | no |
 | `opentelemetry_collector` | OpenTelemetry Collector subordinate application configuration | <pre>object({<br/>  app_name = optional(string, "opentelemetry-collector")<br/>  channel  = optional(string, "2/stable")<br/>  revision = optional(number, null)<br/>  base     = optional(string, "ubuntu@24.04")<br/>  config   = optional(map(string), {})<br/>})</pre> | `{}` | no |
-| `ldap_integration` | Optional existing LDAP endpoint or offer; must be configured with `ldap_certificate_transfer_integration` | <pre>object({<br/>  kind     = string<br/>  name     = optional(string, null)<br/>  endpoint = optional(string, null)<br/>  url      = optional(string, null)<br/>})</pre> | `null` | no |
-| `ldap_certificate_transfer_integration` | Optional existing LDAP certificate-transfer endpoint or offer; must be configured with `ldap_integration` | <pre>object({<br/>  kind     = string<br/>  name     = optional(string, null)<br/>  endpoint = optional(string, null)<br/>  url      = optional(string, null)<br/>})</pre> | `null` | no |
-| `vault_kv_integration` | Optional existing Vault KV endpoint or offer for encryption at rest | <pre>object({<br/>  kind     = string<br/>  name     = optional(string, null)<br/>  endpoint = optional(string, null)<br/>  url      = optional(string, null)<br/>})</pre> | `null` | no |
+| `ldap_integration` | Optional existing LDAP offer; must be configured with `ldap_certificate_transfer_integration` | `object({ url = string })` | `null` | no |
+| `ldap_certificate_transfer_integration` | Optional existing LDAP certificate-transfer offer; must be configured with `ldap_integration` | `object({ url = string })` | `null` | no |
+| `vault_kv_integration` | Optional existing Vault KV offer for encryption at rest | `object({ url = string })` | `null` | no |
 
 ## Outputs
 
@@ -86,44 +86,31 @@ model, provide both its LDAP and certificate-transfer offer URLs:
 
 ```hcl
 ldap_integration = {
-  kind = "offer"
-  url  = "admin/ldap.ldap"
+  url = "admin/ldap.ldap"
 }
 
 ldap_certificate_transfer_integration = {
-  kind = "offer"
-  url  = "admin/ldap.send-ca-cert"
+  url = "admin/ldap.send-ca-cert"
 }
 ```
 
 Both integrations must be configured together and must refer to an existing,
 operational LDAP deployment.
 
-The module can be deployed without Vault. To enable encryption at rest using an
-existing Vault KV endpoint, create a `terraform.tfvars` file containing:
+The module can be deployed without Vault. To enable encryption at rest using a
+Vault KV offer, create a `terraform.tfvars` file containing:
 
 ```hcl
 mongodb_model = "mongodb"
 vpc_id = "vpc-0e5dc48ce6a596ef3"
 
 vault_kv_integration = {
-  kind     = "endpoint"
-  name     = "vault"
-  endpoint = "vault-kv"
-}
-```
-
-For Vault deployed in another model, provide its offer URL instead:
-
-```hcl
-vault_kv_integration = {
-  kind = "offer"
-  url  = "admin/vault.vault-kv"
+  url = "admin/vault.vault-kv"
 }
 ```
 
 This module does not deploy, initialize, unseal, authorize, or configure Vault.
-The endpoint or offer must refer to an existing operational Vault deployment.
+The offer must refer to an existing operational Vault deployment.
 Follow the
 [`vault` charm documentation](https://charmhub.io/vault/docs/h-initialize-vault)
 to prepare it before applying this module.
