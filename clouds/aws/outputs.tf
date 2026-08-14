@@ -19,6 +19,9 @@ output "eks_cluster" {
     name                  = aws_eks_cluster.eks[0].name
     cluster_endpoint      = aws_eks_cluster.eks[0].endpoint
     certificate_authority = aws_eks_cluster.eks[0].certificate_authority
+    node_group_name       = aws_eks_node_group.workers[0].node_group_name
+    node_role_arn         = aws_iam_role.eks_nodes[0].arn
+    ebs_csi_addon         = aws_eks_addon.ebs_csi[0].addon_name
   } : null
   sensitive = true
 }
