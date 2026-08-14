@@ -79,14 +79,9 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `models`     | Map keyed by model UUID containing the components deployed in each model |
 | `offers`     | Map of offers exposed by the MongoDB replica-set module                  |
 
-## Deploy
+## Optional integrations
 
-The following diagram shows the components deployed by this solution and their
-integrations across the AWS VM and Kubernetes models.
-
-![Charmed MongoDB replica set deployment](docs/replica-set-aws-vm.excalidraw.svg)
-
-### LDAP integration
+### LDAP
 
 The module does not deploy LDAP. To integrate an LDAP deployment from another
 model, provide both its `ldap` and `ldap-certificate-transfer` offer URLs:
@@ -104,23 +99,31 @@ ldap_certificate_transfer_integration = {
 Both integrations must be configured together and must refer to an existing,
 operational LDAP deployment.
 
-### Enable encryption at rest
+### Encryption at rest
 
-To enable encryption at rest using a Vault KV offer provide the `vault-kv` integration:
+Enable encryption in the MongoDB configuration and provide the Vault KV offer:
 
 ```hcl
+mongodb = {
+  config = {
+    role                        = "replication"
+    enable-encryption-at-rest   = "true"
+  }
+}
+
 vault_kv_integration = {
   url = "admin/vault.vault-kv"
 }
 ```
 
-This module does not deploy, initialize, unseal, authorize, or configure Vault.
+The module does not initialize, unseal, authorize, or configure Vault.
+
 The offer must refer to an existing operational Vault deployment.
 Follow the
 [`vault` charm documentation](https://charmhub.io/vault/docs/h-initialize-vault)
 to prepare it before applying this module.
 
-### Enable S3 backups
+### S3 backups
 
 The S3 bucket must exist before deploying this solution. The AWS identity used
 by the backup integrator must be able to list the bucket and read, create, and
@@ -157,13 +160,18 @@ export TF_VAR_s3_secret_key="<s3-secret-key>"
 ### TLS certificates
 
 The solution deploys `self-signed-certificates` as its default certificate
-authority. This is intended for evaluation; use your organization's certificate
+authority. This is intended for evaluation, use your organization's certificate
 provider for production deployments.
 
 Optional custom MongoDB client and peer TLS private keys can be supplied through
 the sensitive `tls_client_private_key` and `tls_peer_private_key` variables.
 
-### Deploy the solution
+## Deploy
+
+The following diagram shows the components deployed by this solution and their
+integrations across the AWS VM and Kubernetes models.
+
+![Charmed MongoDB replica set deployment](docs/replica-set-aws-vm.excalidraw.svg)
 
 The MongoDB model must use the same VPC as the Juju controller. The AWS
 infrastructure in this repository configures `vpc-id` on the controller model
