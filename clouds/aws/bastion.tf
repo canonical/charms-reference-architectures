@@ -119,11 +119,12 @@ resource "null_resource" "set_up_bastion_script" {
   count = var.PROVISION_BASTION ? 1 : 0
   provisioner "file" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
-      region     = var.REGION,
-      vpc_id     = aws_vpc.main_vpc.id,
-      subnet_id  = aws_subnet.controller_subnet.id,
-      access_key = var.ACCESS_KEY,
-      secret_key = var.SECRET_KEY,
+      region           = var.REGION,
+      vpc_id           = aws_vpc.main_vpc.id,
+      subnet_id        = aws_subnet.controller_subnet.id,
+      access_key       = var.ACCESS_KEY,
+      secret_key       = var.SECRET_KEY,
+      eks_cluster_name = var.EKS_CLUSTER_NAME
     })
     destination = "setup-juju-env.sh"
   }
@@ -142,5 +143,10 @@ resource "null_resource" "set_up_bastion_script" {
     private_key = file(var.SSH_KEY_FILE)
   }
 
-  depends_on = [aws_instance.bastion_host, aws_vpc.main_vpc, aws_subnet.controller_subnet]
+  depends_on = [
+    aws_instance.bastion_host,
+    aws_vpc.main_vpc,
+    aws_subnet.controller_subnet,
+    aws_eks_cluster.eks,
+  ]
 }

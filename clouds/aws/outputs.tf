@@ -9,6 +9,8 @@ output "infrastructure" {
     deployments_clients_subnet_id = aws_subnet.deployments_clients_subnet.id
     bastion_subnet_id             = aws_subnet.public_a_subnet.id
     bastion_public_ip             = var.PROVISION_BASTION ? aws_instance.bastion_host[0].public_ip : null
+    node_group_name               = aws_eks_node_group.workers[0].node_group_name
+    node_role_arn                 = aws_iam_role.eks_nodes[0].arn
   }
 }
 
@@ -20,4 +22,3 @@ output "eks_cluster" {
   } : null
   sensitive = true
 }
-

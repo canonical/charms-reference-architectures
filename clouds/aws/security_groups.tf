@@ -6,7 +6,7 @@
 ## ====================================================
 
 resource "aws_security_group" "main_nsg" {
-  vpc_id   = aws_vpc.main_vpc.id
+  vpc_id = aws_vpc.main_vpc.id
 
   ingress {
     from_port   = 22

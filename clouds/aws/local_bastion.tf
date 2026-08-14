@@ -7,16 +7,21 @@
 
 
 resource "local_file" "host_set_up_script" {
-  count           = var.SETUP_LOCAL_HOST ? 1 : 0
-  filename        = "${path.module}/scripts/setup-juju-env.sh"
-  content         = templatefile("scripts/setup-juju-env.tftpl", {
-    region        = var.REGION,
-    vpc_id        = aws_vpc.main_vpc.id,
-    subnet_id     = aws_subnet.controller_subnet.id,
-    access_key    = var.ACCESS_KEY,
-    secret_key    = var.SECRET_KEY,
+  count    = var.SETUP_LOCAL_HOST ? 1 : 0
+  filename = "${path.module}/scripts/setup-juju-env.sh"
+  content = templatefile("scripts/setup-juju-env.tftpl", {
+    region           = var.REGION,
+    vpc_id           = aws_vpc.main_vpc.id,
+    subnet_id        = aws_subnet.controller_subnet.id,
+    access_key       = var.ACCESS_KEY,
+    secret_key       = var.SECRET_KEY,
+    eks_cluster_name = var.EKS_CLUSTER_NAME
   })
-  depends_on = [aws_vpc.main_vpc, aws_subnet.controller_subnet]
+  depends_on = [
+    aws_vpc.main_vpc,
+    aws_subnet.controller_subnet,
+    aws_eks_cluster.eks,
+  ]
 }
 
 # Execute the script on the local host
