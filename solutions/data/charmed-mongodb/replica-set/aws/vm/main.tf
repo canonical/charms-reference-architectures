@@ -9,7 +9,7 @@ resource "juju_model" "mongodb" {
   cloud {
     name = "aws"
   }
-  config = var.vpc_id == null ? {} : {
+  config = {
     "vpc-id" = var.vpc_id
   }
 }
@@ -24,19 +24,6 @@ module "cos" {
     }
   }
   risk = var.cos.risk
-}
-
-module "ldap" {
-  source = "./modules/ldap"
-
-  model                    = var.ldap.model
-  cloud                    = var.ldap.cloud
-  credential               = var.ldap.credential
-  self_signed_certificates = var.ldap.self_signed_certificates
-  glauth                   = var.ldap.glauth
-  glauth_utils             = var.ldap.glauth_utils
-  traefik                  = var.ldap.traefik
-  postgresql               = var.ldap.postgresql
 }
 
 module "self_signed_certificates" {
@@ -104,15 +91,9 @@ module "mongodb_replica_set" {
     name     = juju_application.opentelemetry_collector.name
     endpoint = "cos-agent"
   }
-  ldap_integration = {
-    kind = "offer"
-    url  = module.ldap.offers.ldap.url
-  }
-  ldap_certificate_transfer_integration = {
-    kind = "offer"
-    url  = module.ldap.offers.send_ca_cert.url
-  }
-  vault_kv_integration = var.vault_kv_integration
+  ldap_integration                      = var.ldap_integration
+  ldap_certificate_transfer_integration = var.ldap_certificate_transfer_integration
+  vault_kv_integration                  = var.vault_kv_integration
 
   depends_on = [
     juju_model.mongodb,

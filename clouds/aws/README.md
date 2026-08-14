@@ -59,7 +59,7 @@ Upon successful application, the module exports the following outputs:
 | Name             | Description                                                                                                                                                                                    | Sensitive |
 |:-----------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| :-------- |
 | `infrastructure` | A map containing key details of the created AWS infrastructure: `vpc_id`, `controller_subnet_id`, `deployments_subnet_id`, and `bastion_public_ip`.                                            | No        |
-| `eks_cluster`    | A map containing details of the provisioned EKS cluster and managed node group: `name`, `cluster_endpoint`, `certificate_authority`, `node_group_name`, and `node_role_arn`. | Yes |
+| `eks_cluster`    | A map containing details of the provisioned EKS cluster, managed node group, and EBS CSI add-on: `name`, `cluster_endpoint`, `certificate_authority`, `node_group_name`, `node_role_arn`, and `ebs_csi_addon`. | Yes |
 
 ---
 
@@ -141,6 +141,11 @@ popd
 `SOURCE_ADDRESSES`, `SSH_KEY`, and `SSH_KEY_FILE` are required by the current variable definitions even when their associated optional feature is disabled. Use an absolute path for `SSH_KEY_FILE`; Terraform does not expand `~` in every context.
 
 EKS control-plane and managed-node-group creation commonly takes 15–25 minutes and can sometimes take longer. Repeated `Still creating...` messages during that interval are expected. The default node group creates three `m6i.xlarge` workers across the module's private subnets.
+
+The module also installs the EKS Pod Identity Agent and the Amazon EBS CSI
+driver. The CSI controller receives `AmazonEBSCSIDriverPolicy` through a
+dedicated Pod Identity role, allowing Juju applications to dynamically
+provision EBS-backed persistent volumes from the cluster's `gp2` storage class.
 
 ### EKS access and Juju
 

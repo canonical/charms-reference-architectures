@@ -7,7 +7,6 @@ output "components" {
     self_signed_certificates = module.self_signed_certificates
     opentelemetry_collector  = juju_application.opentelemetry_collector
     cos                      = module.cos.components
-    ldap                     = module.ldap.components
   })
 }
 
@@ -33,16 +32,10 @@ output "models" {
       model_uuid = module.cos.model_uuid
       components = module.cos.components
     }
-    (module.ldap.model_uuid) = {
-      model_uuid = module.ldap.model_uuid
-      components = module.ldap.components
-    }
   })
 }
 
 output "offers" {
   description = "Map of all offers exposed by the solution."
-  value = merge(module.mongodb_replica_set.offers, {
-    ldap = module.ldap.offers
-  })
+  value       = module.mongodb_replica_set.offers
 }

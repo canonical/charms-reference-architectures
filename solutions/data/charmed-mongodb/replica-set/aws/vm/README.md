@@ -7,9 +7,8 @@ For more information, refer to the provider
 [documentation](https://registry.terraform.io/providers/juju/juju/latest/docs).
 
 The solution deploys MongoDB with a data integrator, TLS certificates,
-OpenTelemetry Collector, COS Lite, and an LDAP service on Kubernetes. It can
-also integrate with an existing Vault deployment for encryption at rest and an
-optional S3 integrator for backups.
+OpenTelemetry Collector, and COS Lite. It can also integrate with existing LDAP
+and Vault deployments and an optional S3 integrator for backups.
 
 ## Requirements
 
@@ -38,7 +37,6 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 |------|--------|
 | `mongodb_replica_set` | `canonical/mongodb-operator//terraform/product/replica_set` (`8/edge`) |
 | `cos` | `canonical/observability-stack//terraform/cos-lite` (`tf-cos-lite-3.0.2`) |
-| `ldap` | `./modules/ldap` |
 | `self_signed_certificates` | `canonical/self-signed-certificates-operator//terraform` (`main`) |
 
 ## Resources
@@ -56,7 +54,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | `mongodb_model` | Name of the AWS VM model | `string` | `"mongodb"` | no |
-| `vpc_id` | AWS VPC ID shared by the solution infrastructure. Applied to the AWS MongoDB model; Kubernetes models inherit their VPC from their cluster | `string` | `null` | no |
+| `vpc_id` | AWS VPC ID shared by the solution infrastructure. Applied to the AWS MongoDB model; Kubernetes models inherit their VPC from their cluster | `string` | n/a | yes |
 | `cos` | COS model, cloud, credential, and channel risk configuration | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre> | `{}` | no |
 | `mongodb` | MongoDB replica-set application configuration | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}` | no |
 | `data_integrator` | Data-integrator application configuration | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre> | `{}` | no |
@@ -68,6 +66,8 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `logging_config` | Logging configuration used by the MongoDB replica-set module | `string` | `"<root>=INFO"` | no |
 | `self_signed_certificates` | Self-signed-certificates application configuration | <pre>object({<br/>  app_name    = optional(string, "self-signed-certificates")<br/>  channel     = optional(string, "1/stable")<br/>  revision    = optional(number, null)<br/>  base        = optional(string, "ubuntu@24.04")<br/>  constraints = optional(string, "arch=amd64")<br/>  config      = optional(map(string), { ca-common-name = "MongoDB CA" })<br/>  units       = optional(number, 1)<br/>})</pre> | `{}` | no |
 | `opentelemetry_collector` | OpenTelemetry Collector subordinate application configuration | <pre>object({<br/>  app_name = optional(string, "opentelemetry-collector")<br/>  channel  = optional(string, "2/stable")<br/>  revision = optional(number, null)<br/>  base     = optional(string, "ubuntu@24.04")<br/>  config   = optional(map(string), {})<br/>})</pre> | `{}` | no |
+| `ldap_integration` | Optional existing LDAP endpoint or offer; must be configured with `ldap_certificate_transfer_integration` | <pre>object({<br/>  kind     = string<br/>  name     = optional(string, null)<br/>  endpoint = optional(string, null)<br/>  url      = optional(string, null)<br/>})</pre> | `null` | no |
+| `ldap_certificate_transfer_integration` | Optional existing LDAP certificate-transfer endpoint or offer; must be configured with `ldap_integration` | <pre>object({<br/>  kind     = string<br/>  name     = optional(string, null)<br/>  endpoint = optional(string, null)<br/>  url      = optional(string, null)<br/>})</pre> | `null` | no |
 | `vault_kv_integration` | Optional existing Vault KV endpoint or offer for encryption at rest | <pre>object({<br/>  kind     = string<br/>  name     = optional(string, null)<br/>  endpoint = optional(string, null)<br/>  url      = optional(string, null)<br/>})</pre> | `null` | no |
 
 ## Outputs
@@ -80,6 +80,24 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `offers` | Map of offers exposed by the MongoDB replica-set module |
 
 ## Deploy
+
+The module does not deploy LDAP. To integrate an LDAP deployment from another
+model, provide both its LDAP and certificate-transfer offer URLs:
+
+```hcl
+ldap_integration = {
+  kind = "offer"
+  url  = "admin/ldap.ldap"
+}
+
+ldap_certificate_transfer_integration = {
+  kind = "offer"
+  url  = "admin/ldap.send-ca-cert"
+}
+```
+
+Both integrations must be configured together and must refer to an existing,
+operational LDAP deployment.
 
 The module can be deployed without Vault. To enable encryption at rest using an
 existing Vault KV endpoint, create a `terraform.tfvars` file containing:
