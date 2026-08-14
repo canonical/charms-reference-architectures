@@ -17,7 +17,7 @@ resource "juju_model" "mongodb" {
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
   model = {
-    name       = var.cos.model
+    name       = var.cos.model_name
     credential = var.cos.credential
     cloud = {
       name = var.cos.cloud

@@ -12,11 +12,11 @@ and Vault deployments and an optional S3 integrator for backups.
 
 ## Requirements
 
-| Name | Version |
-|------|---------|
-| Terraform | >= 1.6 |
-| Juju provider | ~> 2.0 |
-| Juju | 3.6 or later |
+| Name          | Version      |
+| ------------- | ------------ |
+| Terraform     | >= 1.6       |
+| Juju provider | ~> 2.0       |
+| Juju          | 3.6 or later |
 
 An AWS cloud and credential must be configured in Juju. A Kubernetes cloud and
 credential named `k8s` are used for COS Lite by default and can be overridden
@@ -27,62 +27,69 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 
 ## Providers
 
-| Name | Version |
-|------|---------|
-| `juju` | ~> 2.0 |
+| Name   | Version   |
+| ------ | --------- |
+| `juju` | ~> 2.0    |
 
 ## Modules
 
-| Name | Source |
-|------|--------|
-| `mongodb_replica_set` | `canonical/mongodb-operator//terraform/product/replica_set` (`8/edge`) |
-| `cos` | `canonical/observability-stack//terraform/cos-lite` (`tf-cos-lite-3.0.2`) |
-| `self_signed_certificates` | `canonical/self-signed-certificates-operator//terraform` (`main`) |
+| Name                       | Source                                                                    |
+| -------------------------- | ------------------------------------------------------------------------- |
+| `mongodb_replica_set`      | `canonical/mongodb-operator//terraform/product/replica_set` (`8/edge`)    |
+| `cos`                      | `canonical/observability-stack//terraform/cos-lite` (`tf-cos-lite-3.0.2`) |
+| `self_signed_certificates` | `canonical/self-signed-certificates-operator//terraform` (`main`)         |
 
 ## Resources
 
-| Name | Type |
-|------|------|
-| `juju_model.mongodb` | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model) |
-| `juju_application.opentelemetry_collector` | [Juju application](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) |
+| Name                                                  | Type                                                                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `juju_model.mongodb`                                  | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
+| `juju_application.opentelemetry_collector`            | [Juju application](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) |
 | `juju_integration.opentelemetry_collector_prometheus` | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
-| `juju_integration.opentelemetry_collector_loki` | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
+| `juju_integration.opentelemetry_collector_loki`       | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
 | `juju_integration.opentelemetry_collector_dashboards` | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
 
 ## Inputs
 
-| Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| `mongodb_model` | Name of the AWS VM model | `string` | `"mongodb"` | no |
-| `vpc_id` | AWS VPC ID shared by the solution infrastructure. Applied to the AWS MongoDB model; Kubernetes models inherit their VPC from their cluster | `string` | n/a | yes |
-| `cos` | COS model, cloud, credential, and channel risk configuration | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre> | `{}` | no |
-| `mongodb` | MongoDB replica-set application configuration | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}` | no |
-| `data_integrator` | Data-integrator application configuration | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre> | `{}` | no |
-| `s3_integrator` | Optional S3 backup-integrator configuration | <pre>object({<br/>  config      = map(string)<br/>  channel     = optional(string, "2/stable")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  revision    = optional(number, null)<br/>  constraints = optional(string, "arch=amd64")<br/>  machines    = optional(set(string), [])<br/>})</pre> | `null` | no |
-| `s3_access_key` | Optional AWS S3 access key | `string` (sensitive) | `null` | no |
-| `s3_secret_key` | Optional AWS S3 secret key | `string` (sensitive) | `null` | no |
-| `tls_client_private_key` | Optional PEM private key for MongoDB client-to-server TLS | `string` (sensitive) | `null` | no |
-| `tls_peer_private_key` | Optional PEM private key for MongoDB peer-to-peer TLS | `string` (sensitive) | `null` | no |
-| `logging_config` | Logging configuration used by the MongoDB replica-set module | `string` | `"<root>=INFO"` | no |
-| `self_signed_certificates` | Self-signed-certificates application configuration | <pre>object({<br/>  app_name    = optional(string, "self-signed-certificates")<br/>  channel     = optional(string, "1/stable")<br/>  revision    = optional(number, null)<br/>  base        = optional(string, "ubuntu@24.04")<br/>  constraints = optional(string, "arch=amd64")<br/>  config      = optional(map(string), { ca-common-name = "MongoDB CA" })<br/>  units       = optional(number, 1)<br/>})</pre> | `{}` | no |
-| `opentelemetry_collector` | OpenTelemetry Collector subordinate application configuration | <pre>object({<br/>  app_name = optional(string, "opentelemetry-collector")<br/>  channel  = optional(string, "2/stable")<br/>  revision = optional(number, null)<br/>  base     = optional(string, "ubuntu@24.04")<br/>  config   = optional(map(string), {})<br/>})</pre> | `{}` | no |
-| `ldap_integration` | Optional existing LDAP offer; must be configured with `ldap_certificate_transfer_integration` | `object({ url = string })` | `null` | no |
-| `ldap_certificate_transfer_integration` | Optional existing LDAP certificate-transfer offer; must be configured with `ldap_integration` | `object({ url = string })` | `null` | no |
-| `vault_kv_integration` | Optional existing Vault KV offer for encryption at rest | `object({ url = string })` | `null` | no |
+| Name                                    | Description                                                                                                                                | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default         | Required   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | :--------: |
+| `mongodb_model`                         | Name of the AWS VM model                                                                                                                   | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `"mongodb"`     | no         |
+| `vpc_id`                                | AWS VPC ID shared by the solution infrastructure. Applied to the AWS MongoDB model; Kubernetes models inherit their VPC from their cluster | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | n/a             | yes        |
+| `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                               | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`            | no         |
+| `mongodb`                               | MongoDB replica-set application configuration                                                                                              | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
+| `data_integrator`                       | Data-integrator application configuration                                                                                                  | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`            | no         |
+| `s3_integrator`                         | Optional S3 backup-integrator configuration                                                                                                | <pre>object({<br/>  config      = map(string)<br/>  channel     = optional(string, "2/stable")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  revision    = optional(number, null)<br/>  constraints = optional(string, "arch=amd64")<br/>  machines    = optional(set(string), [])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `null`          | no         |
+| `s3_access_key`                         | Optional AWS S3 access key                                                                                                                 | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
+| `s3_secret_key`                         | Optional AWS S3 secret key                                                                                                                 | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
+| `tls_client_private_key`                | Optional PEM private key for MongoDB client-to-server TLS                                                                                  | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
+| `tls_peer_private_key`                  | Optional PEM private key for MongoDB peer-to-peer TLS                                                                                      | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
+| `logging_config`                        | Logging configuration used by the MongoDB replica-set module                                                                               | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `"<root>=INFO"` | no         |
+| `self_signed_certificates`              | Self-signed-certificates application configuration                                                                                         | <pre>object({<br/>  app_name    = optional(string, "self-signed-certificates")<br/>  channel     = optional(string, "1/stable")<br/>  revision    = optional(number, null)<br/>  base        = optional(string, "ubuntu@24.04")<br/>  constraints = optional(string, "arch=amd64")<br/>  config      = optional(map(string), { ca-common-name = "MongoDB CA" })<br/>  units       = optional(number, 1)<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                       | `{}`            | no         |
+| `opentelemetry_collector`               | OpenTelemetry Collector subordinate application configuration                                                                              | <pre>object({<br/>  app_name = optional(string, "opentelemetry-collector")<br/>  channel  = optional(string, "2/stable")<br/>  revision = optional(number, null)<br/>  base     = optional(string, "ubuntu@24.04")<br/>  config   = optional(map(string), {})<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `{}`            | no         |
+| `ldap_integration`                      | Optional existing LDAP offer; must be configured with `ldap_certificate_transfer_integration`                                              | `object({ url = string })`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `null`          | no         |
+| `ldap_certificate_transfer_integration` | Optional existing LDAP certificate-transfer offer; must be configured with `ldap_integration`                                              | `object({ url = string })`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `null`          | no         |
+| `vault_kv_integration`                  | Optional existing Vault KV offer for encryption at rest                                                                                    | `object({ url = string })`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `null`          | no         |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `components` | Map of all components deployed by the solution |
-| `metadata` | Metadata of the MongoDB replica-set deployment |
-| `models` | Map keyed by model UUID containing the components deployed in each model |
-| `offers` | Map of offers exposed by the MongoDB replica-set module |
+| Name         | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| `components` | Map of all components deployed by the solution                           |
+| `metadata`   | Metadata of the MongoDB replica-set deployment                           |
+| `models`     | Map keyed by model UUID containing the components deployed in each model |
+| `offers`     | Map of offers exposed by the MongoDB replica-set module                  |
 
 ## Deploy
 
+The following diagram shows the components deployed by this solution and their
+integrations across the AWS VM and Kubernetes models.
+
+![Charmed MongoDB replica set deployment](docs/replica-set-aws-vm.excalidraw.svg)
+
+### LDAP integration
+
 The module does not deploy LDAP. To integrate an LDAP deployment from another
-model, provide both its LDAP and certificate-transfer offer URLs:
+model, provide both its `ldap` and `ldap-certificate-transfer` offer URLs:
 
 ```hcl
 ldap_integration = {
@@ -97,13 +104,11 @@ ldap_certificate_transfer_integration = {
 Both integrations must be configured together and must refer to an existing,
 operational LDAP deployment.
 
-The module can be deployed without Vault. To enable encryption at rest using a
-Vault KV offer, create a `terraform.tfvars` file containing:
+### Enable encryption at rest
+
+To enable encryption at rest using a Vault KV offer provide the `vault-kv` integration:
 
 ```hcl
-mongodb_model = "mongodb"
-vpc_id = "vpc-0e5dc48ce6a596ef3"
-
 vault_kv_integration = {
   url = "admin/vault.vault-kv"
 }
@@ -115,7 +120,13 @@ Follow the
 [`vault` charm documentation](https://charmhub.io/vault/docs/h-initialize-vault)
 to prepare it before applying this module.
 
-To enable S3 backups, add:
+### Enable S3 backups
+
+The S3 bucket must exist before deploying this solution. The AWS identity used
+by the backup integrator must be able to list the bucket and read, create, and
+delete objects under the configured path.
+
+Add the backup integrator configuration to `terraform.tfvars`:
 
 ```hcl
 s3_integrator = {
@@ -126,22 +137,71 @@ s3_integrator = {
     path     = "mongodb"
   }
 }
-
-# Prefer TF_VAR_s3_access_key and TF_VAR_s3_secret_key in the environment.
 ```
+
+The configuration fields are:
+
+- `bucket`: name of the existing S3 bucket.
+- `region`: AWS region containing the bucket.
+- `endpoint`: S3 API endpoint for the selected region.
+- `path`: optional prefix under which MongoDB backups are stored.
+
+Provide the S3 credentials through sensitive Terraform environment variables
+instead of writing them to `terraform.tfvars`:
+
+```bash
+export TF_VAR_s3_access_key="<s3-access-key>"
+export TF_VAR_s3_secret_key="<s3-secret-key>"
+```
+
+### TLS certificates
+
+The solution deploys `self-signed-certificates` as its default certificate
+authority. This is intended for evaluation; use your organization's certificate
+provider for production deployments.
 
 Optional custom MongoDB client and peer TLS private keys can be supplied through
 the sensitive `tls_client_private_key` and `tls_peer_private_key` variables.
-Prefer environment variables over committing private keys to a tfvars file.
 
-Then run:
+### Deploy the solution
+
+The MongoDB model must use the same VPC as the Juju controller. The AWS
+infrastructure in this repository configures `vpc-id` on the controller model
+during bootstrap. Retrieve it with:
+
+```bash
+VPC_ID="$(juju model-config -m aws:controller vpc-id)"
+```
+
+Replace `aws` if your Juju controller has a different name.
+
+Confirm that the command returned the expected VPC before continuing:
+
+```bash
+echo "$VPC_ID"
+```
+
+Initialize Terraform:
 
 ```bash
 terraform init
-terraform plan -out terraform.out
-terraform apply terraform.out
 ```
 
-The default certificate authority is intended for evaluation. Replace
-`self-signed-certificates` with your organization's certificate provider for
-production deployments.
+Deploy the solution in two steps. First, create the MongoDB model:
+
+```bash
+terraform plan \
+  -target=juju_model.mongodb \
+  -var="vpc_id=${VPC_ID}" \
+  -out mongodb-model.out
+terraform apply mongodb-model.out
+```
+
+Then plan and apply the rest of the solution:
+
+```bash
+terraform plan \
+  -var="vpc_id=${VPC_ID}" \
+  -out terraform.out
+terraform apply terraform.out
+```

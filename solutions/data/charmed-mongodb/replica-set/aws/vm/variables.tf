@@ -21,7 +21,7 @@ variable "vpc_id" {
 variable "cos" {
   description = "Configuration for the Charmed Observability Stack."
   type = object({
-    model      = optional(string, "cos")
+    model_name = optional(string, "cos")
     cloud      = optional(string, "k8s")
     credential = optional(string, "k8s")
     risk       = optional(string, "stable")
@@ -34,7 +34,7 @@ variable "mongodb" {
   type = object({
     app_name    = optional(string, "mongodb")
     base        = optional(string, "ubuntu@24.04")
-    channel     = optional(string, "8/edge")
+    channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
     constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
