@@ -12,12 +12,15 @@ variable "mongodb_model" {
 }
 
 variable "cos" {
-  description = "Configuration for the Charmed Observability Stack."
+  description = "Configuration for the Charmed Observability Stack. Storage defaults are intended for testing and must be sized before production deployment."
   type = object({
-    model_name = optional(string, "cos")
-    cloud      = optional(string, "k8s")
-    credential = optional(string, "k8s")
-    risk       = optional(string, "stable")
+    model_name                    = optional(string, "cos")
+    cloud                         = optional(string, "k8s")
+    credential                    = optional(string, "k8s")
+    risk                          = optional(string, "stable")
+    grafana_storage_directives    = optional(map(string), { database = "1G" })
+    loki_storage_directives       = optional(map(string), { active-index-directory = "1G", loki-chunks = "1G" })
+    prometheus_storage_directives = optional(map(string), { database = "1G" })
   })
   default = {}
 }
