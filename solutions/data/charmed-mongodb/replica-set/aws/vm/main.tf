@@ -24,6 +24,15 @@ module "cos" {
     }
   }
   risk = var.cos.risk
+  grafana = {
+    storage_directives = var.cos.grafana_storage_directives
+  }
+  loki = {
+    storage_directives = var.cos.loki_storage_directives
+  }
+  prometheus = {
+    storage_directives = var.cos.prometheus_storage_directives
+  }
 }
 
 module "self_signed_certificates" {
