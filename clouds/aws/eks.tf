@@ -15,7 +15,7 @@ resource "aws_eks_cluster" "eks" {
   }
 
   role_arn = aws_iam_role.cluster[count.index].arn
-  version  = "1.33"
+  version  = "1.35"
 
   vpc_config {
     subnet_ids = [
