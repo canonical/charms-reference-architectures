@@ -9,10 +9,11 @@ resource "juju_model" "mongodb" {
   cloud {
     name = "aws"
   }
-  config = {
+  config = var.vpc_id == null ? {} : {
     "vpc-id" = var.vpc_id
   }
 }
+
 
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"

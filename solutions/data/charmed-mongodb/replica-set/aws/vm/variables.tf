@@ -8,15 +8,16 @@ variable "mongodb_model" {
 }
 
 variable "vpc_id" {
-  description = "AWS VPC ID shared by the solution infrastructure. Juju applies it to the AWS MongoDB model; Kubernetes models inherit their VPC from their registered cluster. This setting is immutable after model creation."
+  description = "Optional AWS VPC ID shared by the solution infrastructure. Juju applies it to the AWS MongoDB model. This setting is immutable after model creation. Required if you use the `clouds/aws` module in this repository to configure the AWS cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own AWS cloud configuration and Juju controller placement."
   type        = string
-  nullable    = false
+  default     = null
 
   validation {
-    condition     = can(regex("^vpc-[0-9a-f]+$", var.vpc_id))
+    condition     = var.vpc_id == null || can(regex("^vpc-[0-9a-f]+$", var.vpc_id))
     error_message = "vpc_id must be a valid AWS VPC ID such as vpc-0123456789abcdef0."
   }
 }
+
 
 variable "cos" {
   description = "Configuration for the Charmed Observability Stack. Storage defaults are intended for testing and must be sized before production deployment."
