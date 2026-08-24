@@ -4,16 +4,24 @@ This Terraform root module deploys a MongoDB sharded cluster with the
 [Terraform Juju provider](https://github.com/juju/terraform-provider-juju/).
 It uses the MongoDB operator's `terraform/product/sharded_cluster` module.
 
-The deployment uses three distinct AWS models:
+The deployment uses a scalable number of AWS models:
 
 - The config-server model contains the config server, mongos, data integrator,
-  optional S3 integrator, self-signed-certificates, and charmed etcd.
-- The first shard is deployed in the shard-one model.
-- The second shard is deployed in the shard-two model.
+  optional S3 integrator, and self-signed-certificates for MongoDB TLS.
+- Dynamic shard models: Each shard is deployed in its own model with either 
+  custom names or auto-generated names (mongodb-shard-1, mongodb-shard-2, etc.)
+- The mongodb-etcd model (hardcoded name) contains charmed etcd with its own 
+  self-signed-certificates for rolling operations.
 
-The certificate and etcd endpoints are offered from the config-server model so
-the product module can integrate both remote shards. Charmed etcd is related to
-self-signed-certificates through its `client-certificates` endpoint.
+The MongoDB certificate and etcd endpoints are offered from their respective models so
+the product module can integrate all remote shards regardless of count. The etcd 
+deployment uses the charmed-etcd product module with automatic TLS configuration, 
+while MongoDB uses the self-signed-certificates in the config-server model.
+
+The solution includes observability with COS Lite (Canonical Observability Stack)
+providing monitoring, logging, and alerting capabilities. It also supports
+optional LDAP integration for authentication and Vault integration for encryption
+at rest.
 
 ## Requirements
 
@@ -31,32 +39,39 @@ can be supplied with `JUJU_CONTROLLER_ADDRESSES`, `JUJU_USERNAME`, and
 | Name | Source |
 |------|--------|
 | `mongodb_sharded_cluster` | `canonical/mongodb-operator//terraform/product/sharded_cluster` (`8/edge`) |
+| `charmed_etcd` | `canonical/charmed-etcd-operator//terraform/product` (`3.6/edge`) |
+| `cos` | `canonical/observability-stack//terraform/cos-lite` (`tf-cos-lite-3.0.2`) |
 
 ## Resources
 
 | Name | Type |
 |------|------|
 | `juju_model.config_server` | Juju model |
-| `juju_model.shard_one` | Juju model |
-| `juju_model.shard_two` | Juju model |
-| `juju_application.self_signed_certificates` | Juju application |
-| `juju_application.etcd` | Juju application |
-| `juju_integration.etcd_client_certificates` | Juju integration |
-| `juju_offer.certificates` | Juju offer |
-| `juju_offer.etcd` | Juju offer |
+| `juju_model.shards` | Dynamic shard models (for_each) |
+| `juju_model.etcd` | Juju model (hardcoded "mongodb-etcd") |
+| `module.charmed_etcd` | Charmed etcd product module |
+| `module.self_signed_certificates` | MongoDB self-signed certificates module |
+| `juju_offer.certificates` | MongoDB certificates offer |
+| `juju_offer.etcd` | Etcd offer |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| `models` | Names of the config-server, shard-one, and shard-two AWS models | `object` | `{}` | no |
+| `model_config` | Configuration for AWS models | `object` | `{ cloud = "aws", credential = null }` | no |
+| `models` | Names of the config-server AWS model | `object` | `{}` | no |
+| `cos` | COS configuration and storage directives | `object` | `{}` | no |
 | `config_server` | MongoDB config-server application configuration | `object` | `{}` | no |
 | `mongos` | Mongos application configuration | `object` | `{}` | no |
-| `shards` | Exactly two shard application configurations | `list(object)` | `[{ app_name = "shard-one" }, { app_name = "shard-two" }]` | no |
+| `shards` | Shard application configurations (scalable list) | `list(object)` | `[{ app_name = "shard-one" }, { app_name = "shard-two" }]` | no |
 | `data_integrator` | Data-integrator configuration | `object` | `{}` | no |
 | `s3_integrator` | Optional S3 integrator configuration | `object` | `null` | no |
-| `self_signed_certificates` | Self-signed-certificates configuration | `object` | `{}` | no |
-| `etcd` | Charmed etcd configuration | `object` | `{}` | no |
+| `opentelemetry_collector` | OpenTelemetry Collector configuration for observability | `object` | `{ enabled = false }` | no |
+| `etcd` | Charmed etcd configuration for rolling operations | `object` | `{}` | no |
+| `self_signed_certificates` | Self-signed certificates for MongoDB TLS | `object` | `{}` | no |
+| `ldap_integration` | Optional existing LDAP offer | `object` | `null` | no |
+| `ldap_certificate_transfer_integration` | Optional existing LDAP certificate transfer offer | `object` | `null` | no |
+| `vault_kv_integration` | Optional existing Vault KV offer | `object` | `null` | no |
 | `s3_access_key` | Optional S3 access key | `string` (sensitive) | `null` | no |
 | `s3_secret_key` | Optional S3 secret key | `string` (sensitive) | `null` | no |
 | `tls_client_private_key` | Optional config-server client TLS private key | `string` (sensitive) | `null` | no |
@@ -67,23 +82,195 @@ can be supplied with `JUJU_CONTROLLER_ADDRESSES`, `JUJU_USERNAME`, and
 
 | Name | Description |
 |------|-------------|
-| `components` | Map of all deployed components |
+| `components` | Map of all deployed components including COS |
 | `metadata` | Sharded-cluster deployment metadata |
 | `models` | Map keyed by model UUID with components deployed in each model |
-| `offers` | Map of offers exposed by the solution |
-| `provides` | Map of provided integration endpoints |
-| `requires` | Map of required integration endpoints |
+| `offers` | Map of offers exposed by the solution including COS offers |
+| `shard_models` | Map of shard models created, keyed by shard index |
+
+## Rolling Operations Support
+
+This deployment includes Charmed etcd deployed using the etcd product module for rolling operations support, which enables:
+
+- Zero-downtime cluster maintenance operations
+- Coordinated rolling restarts across shards
+- Safe configuration updates without service interruption
+- Improved cluster resilience during updates
+
+The etcd deployment features:
+- **Hardcoded model**: Etcd runs in the "mongodb-etcd" Juju model
+- **Simplified TLS**: Uses etcd product module with minimal self-signed certificates configuration (1/stable channel, "Etcd CA" common name)
+- **Cross-model integration**: Etcd client endpoint offered to MongoDB config servers and shards
+- **Production-ready**: 3-unit HA cluster by default
+
+MongoDB uses the self-signed-certificates deployed in the config-server model for its TLS needs, ensuring proper certificate separation between etcd and MongoDB components.
+
+## Scalable Shard Configuration
+
+This deployment supports any number of shards through dynamic model creation. Each shard can optionally specify its own model name or use auto-generated names.
+
+### Default Configuration (2 Shards)
+```hcl
+shards = [
+  { app_name = "shard-one" },   # Uses auto-generated model: "mongodb-shard-1"
+  { app_name = "shard-two" },   # Uses auto-generated model: "mongodb-shard-2"
+]
+```
+
+### Custom Multi-Shard Configuration
+```hcl
+shards = [
+  {
+    app_name    = "primary-shard"
+    model_name  = "mongodb-primary-shard"    # Custom model name
+    units       = 5
+    constraints = "arch=amd64 cores=4 mem=8G"
+  },
+  {
+    app_name    = "analytics-shard"
+    model_name  = "mongodb-analytics-shard"  # Custom model name
+    units       = 3
+    constraints = "arch=amd64 cores=2 mem=4G"
+  },
+  {
+    app_name    = "cache-shard"
+    # Uses auto-generated model: "mongodb-shard-3"
+    units       = 3
+    constraints = "arch=amd64 cores=2 mem=4G"
+  },
+  {
+    app_name    = "archive-shard" 
+    # Uses auto-generated model: "mongodb-shard-4"
+    units       = 1
+    constraints = "arch=amd64 cores=1 mem=2G"
+  }
+]
+```
+
+### Model Name Generation
+- **Explicit model names**: Use the `model_name` field to specify custom model names
+- **Auto-generated names**: Omit `model_name` to use `mongodb-shard-{index+1}` format
+- **Validation**: All model names (explicit or auto-generated) must be unique
 
 ## Deploy
 
-The default configuration creates the three models and deploys two three-unit
-shards:
+The default configuration creates the config-server, etcd, and shard models 
+dynamically based on the number of shards configured, then deploys the 
+sharded cluster with etcd-powered rolling operations and observability:
 
 ```bash
 terraform init
 terraform plan -out terraform.out
 terraform apply terraform.out
 ```
+
+## Optional integrations
+
+### Observability Stack (COS)
+
+The solution deploys COS Lite for monitoring, logging, and alerting capabilities.
+MongoDB observability is integrated through OpenTelemetry Collectors that are 
+automatically deployed and configured when `opentelemetry_collector.enabled = true`.
+
+**Enable COS Integration:**
+```hcl
+opentelemetry_collector = {
+  enabled  = true
+  app_name = "opentelemetry-collector"
+  channel  = "2/stable"
+}
+```
+
+**COS Storage Configuration:**
+The default storage directives are intended only for testing. Size every volume
+for expected retention and ingestion volume before production deployment:
+
+```hcl
+cos = {
+  grafana_storage_directives = {
+    database = "20G"
+  }
+  loki_storage_directives = {
+    active-index-directory = "20G"
+    loki-chunks             = "100G"
+  }
+  prometheus_storage_directives = {
+    database = "100G"
+  }
+}
+```
+
+**How it works:**
+- OpenTelemetry Collectors are deployed in each model (config-server + all shard models)
+- Collectors automatically integrate with COS stack for metrics, logs, and dashboards
+- MongoDB applications connect to OpenTelemetry Collectors via `cos_agent_integrations` parameter
+- No manual configuration needed when `opentelemetry_collector.enabled = true`
+
+### LDAP Integration
+
+The module does not deploy LDAP. To integrate an LDAP deployment from another
+model, provide both its `ldap` and `ldap-certificate-transfer` offer URLs:
+
+```hcl
+ldap_integration = {
+  url = "admin/ldap.ldap"
+}
+
+ldap_certificate_transfer_integration = {
+  url = "admin/ldap.send-ca-cert"
+}
+```
+
+Both integrations must be configured together and must refer to an existing,
+operational LDAP deployment.
+
+### Encryption at rest
+
+Enable encryption in the MongoDB configuration and provide the Vault KV offer:
+
+```hcl
+config_server = {
+  config = {
+    role                      = "config-server"
+    enable-encryption-at-rest = "true"
+  }
+}
+
+vault_kv_integration = {
+  url = "admin/vault.vault-kv"
+}
+```
+
+The module does not initialize, unseal, authorize, or configure Vault.
+The offer must refer to an existing operational Vault deployment.
+
+### Rolling Operations and etcd Configuration
+
+The etcd cluster is automatically configured with minimal setup:
+
+```hcl
+etcd = {
+  app_name    = "etcd"
+  channel     = "3.6/stable"
+  units       = 3  # Use odd numbers (3, 5, 7) for high availability
+  constraints = "arch=amd64 cores=2 mem=4G"
+  storage = {
+    data = "10G"  # Adjust based on expected cluster size and retention
+  }
+}
+```
+
+The etcd TLS certificates are automatically managed by the product module with hardcoded settings:
+- Channel: `1/stable`
+- CA Common Name: `Etcd CA`
+- No additional configuration required
+
+For production deployments, consider:
+- Using at least 3 etcd units for high availability
+- Sizing storage based on cluster size and retention requirements
+- Placing etcd units across different availability zones
+
+### S3 backups
 
 To enable S3 backups, add the following to `terraform.tfvars`:
 
@@ -96,4 +283,11 @@ s3_integrator = {
     path     = "mongodb"
   }
 }
+```
+
+Provide the S3 credentials through sensitive environment variables:
+
+```bash
+export TF_VAR_s3_access_key="<s3-access-key>"
+export TF_VAR_s3_secret_key="<s3-secret-key>"
 ```
