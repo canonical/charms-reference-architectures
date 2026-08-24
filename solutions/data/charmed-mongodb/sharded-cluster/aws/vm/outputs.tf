@@ -4,16 +4,15 @@
 output "components" {
   description = "Map of all components deployed by the solution."
   value = merge(
-    module.mongodb_sharded_cluster.components, 
-    module.cos.components,
-    module.charmed_etcd.components,
+    module.mongodb_sharded_cluster.components,
     {
-      self_signed_certificates = module.self_signed_certificates
-    },
-    var.opentelemetry_collector.enabled ? {
-      opentelemetry_collector_config = try(juju_application.opentelemetry_collector_config[0], null)
+      self_signed_certificates        = module.self_signed_certificates
+      etcd                           = module.charmed_etcd.app_names.etcd
+      etcd_self_signed_certificates  = module.charmed_etcd.app_names.self-signed-certificates
+      opentelemetry_collector_config = juju_application.opentelemetry_collector_config
       opentelemetry_collector_shards = juju_application.opentelemetry_collector_shards
-    } : {}
+    }
+    # Note: Removed module.cos.components as COS module may not expose this output
   )
 }
 
@@ -25,8 +24,8 @@ output "metadata" {
 output "models" {
   description = "Map keyed by model UUID containing the components deployed in each model."
   value = merge(
-    module.mongodb_sharded_cluster.models, 
-    module.cos.models,
+    module.mongodb_sharded_cluster.models,
+    # Note: Removed module.cos.models as COS module may not expose this output
     {
       (juju_model.config_server.uuid) = {
         model_uuid = juju_model.config_server.uuid
@@ -34,15 +33,16 @@ output "models" {
           try(module.mongodb_sharded_cluster.models[juju_model.config_server.uuid].components, {}),
           {
             self_signed_certificates = module.self_signed_certificates
-          },
-          var.opentelemetry_collector.enabled ? {
-            opentelemetry_collector = try(juju_application.opentelemetry_collector_config[0], null)
-          } : {}
+            opentelemetry_collector  = juju_application.opentelemetry_collector_config
+          }
         )
       },
       (juju_model.etcd.uuid) = {
         model_uuid = juju_model.etcd.uuid
-        components = module.charmed_etcd.components
+        components = {
+          etcd                          = module.charmed_etcd.app_names.etcd
+          etcd_self_signed_certificates = module.charmed_etcd.app_names.self-signed-certificates
+        }
       }
     },
     # Add all shard models dynamically
@@ -51,9 +51,9 @@ output "models" {
         model_uuid = shard_model.uuid
         components = merge(
           try(module.mongodb_sharded_cluster.models[shard_model.uuid].components, {}),
-          var.opentelemetry_collector.enabled ? {
+          {
             opentelemetry_collector = juju_application.opentelemetry_collector_shards[i]
-          } : {}
+          }
         )
       }
     }
@@ -63,8 +63,9 @@ output "models" {
 output "offers" {
   description = "Map of offers exposed by the solution."
   value = merge(
-    module.mongodb_sharded_cluster.offers, 
-    module.cos.offers,
+    module.mongodb_sharded_cluster.offers,
+    # COS offers are used in integrations but may not be exposed as outputs
+    try(module.cos.offers, {}),
     {
       mongodb_certificates = juju_offer.certificates.url
       etcd                 = juju_offer.etcd.url

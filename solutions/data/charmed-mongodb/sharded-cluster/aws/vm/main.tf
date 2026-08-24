@@ -15,11 +15,11 @@ resource "juju_model" "config_server" {
   }
 }
 
-# Dynamic shard models - creates one model per shard
+# Dynamic shard models - creates one model per shard using centralized model names
 resource "juju_model" "shards" {
   for_each = {
     for i, shard in var.shards : i => {
-      name       = shard.model_name != null ? shard.model_name : "mongodb-shard-${i + 1}"
+      name         = var.models.shards[i]
       shard_config = shard
     }
   }
@@ -68,15 +68,26 @@ module "cos" {
   }
 }
 
-# Etcd deployment with simplified configuration
+# Etcd deployment using the charm module (etcd + self-signed certificates only)
 module "charmed_etcd" {
-  source = "git::https://github.com/canonical/charmed-etcd-operator//terraform/product?ref=3.6/edge"
+  source = "git::https://github.com/canonical/charmed-etcd-operator//terraform/charm?ref=DPE-10183-tf-requirements"
 
-  etcd = merge(var.etcd, {
-    model = juju_model.etcd.name
-  })
+  # Core etcd parameters
+  model_uuid         = juju_model.etcd.uuid
+  app_name           = var.etcd.app_name
+  channel            = var.etcd.channel
+  revision           = var.etcd.revision
+  base               = var.etcd.base
+  config             = var.etcd.config
+  units              = var.etcd.units
+  constraints        = var.etcd.constraints
+  machines           = var.etcd.machines
+  storage            = var.etcd.storage
+  endpoint_bindings  = var.etcd.endpoint_bindings
+  expose             = var.etcd.expose
   
-  # Simplified self-signed certificates for etcd only
+  # Enable TLS with self-signed certificates
+  tls = true
   self-signed-certificates = {
     channel = "1/stable"
     config  = { "ca-common-name" = "Etcd CA" }
@@ -113,10 +124,8 @@ resource "juju_offer" "certificates" {
   model_uuid       = juju_model.config_server.uuid
 }
 
-# OpenTelemetry Collector applications (when enabled)
+# OpenTelemetry Collector applications (always deployed)
 resource "juju_application" "opentelemetry_collector_config" {
-  count = var.opentelemetry_collector.enabled ? 1 : 0
-  
   charm {
     name     = "opentelemetry-collector"
     channel  = var.opentelemetry_collector.channel
@@ -131,7 +140,7 @@ resource "juju_application" "opentelemetry_collector_config" {
 }
 
 resource "juju_application" "opentelemetry_collector_shards" {
-  for_each = var.opentelemetry_collector.enabled ? { for i, shard in var.shards : i => shard } : {}
+  for_each = { for i, shard in var.shards : i => shard }
   
   charm {
     name     = "opentelemetry-collector"
@@ -146,13 +155,11 @@ resource "juju_application" "opentelemetry_collector_shards" {
   model_uuid  = juju_model.shards[each.key].uuid
 }
 
-# COS integrations for OpenTelemetry Collectors
+# COS integrations for OpenTelemetry Collectors (always deployed)
 resource "juju_integration" "opentelemetry_collector_config_prometheus" {
-  count = var.opentelemetry_collector.enabled ? 1 : 0
-  
   model_uuid = juju_model.config_server.uuid
   application {
-    name     = juju_application.opentelemetry_collector_config[0].name
+    name     = juju_application.opentelemetry_collector_config.name
     endpoint = "send-remote-write"
   }
   application {
@@ -161,11 +168,9 @@ resource "juju_integration" "opentelemetry_collector_config_prometheus" {
 }
 
 resource "juju_integration" "opentelemetry_collector_config_loki" {
-  count = var.opentelemetry_collector.enabled ? 1 : 0
-  
   model_uuid = juju_model.config_server.uuid
   application {
-    name     = juju_application.opentelemetry_collector_config[0].name
+    name     = juju_application.opentelemetry_collector_config.name
     endpoint = "send-loki-logs"
   }
   application {
@@ -174,11 +179,9 @@ resource "juju_integration" "opentelemetry_collector_config_loki" {
 }
 
 resource "juju_integration" "opentelemetry_collector_config_dashboards" {
-  count = var.opentelemetry_collector.enabled ? 1 : 0
-  
   model_uuid = juju_model.config_server.uuid
   application {
-    name     = juju_application.opentelemetry_collector_config[0].name
+    name     = juju_application.opentelemetry_collector_config.name
     endpoint = "grafana-dashboards-provider"
   }
   application {
@@ -187,7 +190,7 @@ resource "juju_integration" "opentelemetry_collector_config_dashboards" {
 }
 
 resource "juju_integration" "opentelemetry_collector_shards_prometheus" {
-  for_each = var.opentelemetry_collector.enabled ? { for i, shard in var.shards : i => shard } : {}
+  for_each = { for i, shard in var.shards : i => shard }
   
   model_uuid = juju_model.shards[each.key].uuid
   application {
@@ -200,7 +203,7 @@ resource "juju_integration" "opentelemetry_collector_shards_prometheus" {
 }
 
 resource "juju_integration" "opentelemetry_collector_shards_loki" {
-  for_each = var.opentelemetry_collector.enabled ? { for i, shard in var.shards : i => shard } : {}
+  for_each = { for i, shard in var.shards : i => shard }
   
   model_uuid = juju_model.shards[each.key].uuid
   application {
@@ -213,7 +216,7 @@ resource "juju_integration" "opentelemetry_collector_shards_loki" {
 }
 
 resource "juju_integration" "opentelemetry_collector_shards_dashboards" {
-  for_each = var.opentelemetry_collector.enabled ? { for i, shard in var.shards : i => shard } : {}
+  for_each = { for i, shard in var.shards : i => shard }
   
   model_uuid = juju_model.shards[each.key].uuid
   application {
@@ -241,10 +244,16 @@ module "mongodb_sharded_cluster" {
   data_integrator = merge(var.data_integrator, {
     model_uuid = juju_model.config_server.uuid
   })
-  backups_integrator = var.s3_integrator == null ? null : merge(var.s3_integrator, {
+  backups_integrator = var.s3_integrator == null ? null : {
     storage_type = "s3"
+    config       = var.s3_integrator.config
+    channel      = var.s3_integrator.channel
+    base         = var.s3_integrator.base
+    revision     = var.s3_integrator.revision
+    constraints  = var.s3_integrator.constraints
+    machines     = var.s3_integrator.machines
     model_uuid   = juju_model.config_server.uuid
-  })
+  }
 
   # MongoDB TLS certificates integration (from config-server model)
   client_certificates_integration = {
@@ -268,11 +277,11 @@ module "mongodb_sharded_cluster" {
     url        = juju_offer.etcd.url
   }
   
-  # COS integration via OpenTelemetry Collector applications
-  cos_agent_integrations = var.opentelemetry_collector.enabled ? merge(
+  # COS integration via OpenTelemetry Collector applications (always present)
+  cos_agent_integrations = merge(
     {
       "config-server" = {
-        name     = juju_application.opentelemetry_collector_config[0].name
+        name     = juju_application.opentelemetry_collector_config.name
         endpoint = "cos-agent"
       }
     },
@@ -282,7 +291,7 @@ module "mongodb_sharded_cluster" {
         endpoint = "cos-agent"
       }
     }
-  ) : {}
+  )
   
   # Optional LDAP integrations
   ldap_integration = var.ldap_integration == null ? null : {

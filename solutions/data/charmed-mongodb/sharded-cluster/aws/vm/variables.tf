@@ -11,11 +11,22 @@ variable "model_config" {
 }
 
 variable "models" {
-  description = "Names of the AWS models used for the config server. Shard models are now configured per shard."
+  description = "Names of the AWS models used for the MongoDB deployment. The number of shard models must match the number of shards configured."
   type = object({
     config_server = optional(string, "mongodb-config")
+    shards        = optional(list(string), ["mongodb-shard-one", "mongodb-shard-two"])
   })
   default = {}
+
+  validation {
+    condition = length(var.models.shards) >= 1
+    error_message = "At least one shard model must be configured."
+  }
+
+  validation {
+    condition = length(distinct(concat([var.models.config_server], var.models.shards))) == length(var.models.shards) + 1
+    error_message = "All model names (config server and shards) must be unique."
+  }
 }
 variable "vpc_id" {
   description = "Optional AWS VPC ID shared by the solution infrastructure. Juju applies it to the cluster models. This setting is immutable after model creation. Required if you use the `clouds/aws` module in this repository to configure the AWS cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own AWS cloud configuration and Juju controller placement."
@@ -84,10 +95,9 @@ variable "mongos" {
 }
 
 variable "shards" {
-  description = "Configuration for MongoDB shards. Each shard can specify its own model name or use auto-generated names."
+  description = "Configuration for MongoDB shards. Each shard will be deployed in the corresponding model from models.shards (matched by index)."
   type = list(object({
     app_name           = string
-    model_name         = optional(string) # If not specified, auto-generated as "mongodb-shard-{index+1}"
     base               = optional(string, "ubuntu@24.04")
     channel            = optional(string, "8/stable")
     config             = optional(map(string), { role = "shard" })
@@ -120,14 +130,6 @@ variable "shards" {
     condition     = length(distinct([for shard in var.shards : shard.app_name])) == length(var.shards)
     error_message = "Each shard must have a unique application name."
   }
-
-  validation {
-    condition = length(distinct([
-      for i, shard in var.shards : 
-      shard.model_name != null ? shard.model_name : "mongodb-shard-${i + 1}"
-    ])) == length(var.shards)
-    error_message = "Each shard must use a unique model name (explicit or auto-generated)."
-  }
 }
 
 variable "data_integrator" {
@@ -151,36 +153,37 @@ variable "data_integrator" {
 }
 
 variable "s3_integrator" {
-  description = "Optional S3 integrator configuration. It is deployed in the config-server model."
+  description = "Optional S3 backup integrator configuration."
   type = object({
-    config      = map(string)
-    channel     = optional(string, "2/stable")
     base        = optional(string, "ubuntu@24.04")
-    revision    = optional(number, null)
+    channel     = optional(string, "2/stable")
+    config      = map(string)
     constraints = optional(string, "arch=amd64")
     machines    = optional(set(string), [])
+    revision    = optional(number, null)
   })
   default = null
 
   validation {
     condition     = var.s3_integrator == null || length(var.s3_integrator.machines) <= 1
-    error_message = "The S3 integrator can be placed on at most one machine."
+    error_message = "The backup integrator can be placed on at most one machine."
   }
 }
 
 variable "etcd" {
-  description = "Charmed etcd configuration. It is deployed in a hardcoded 'mongodb-etcd' model using the etcd product module."
+  description = "Charmed etcd configuration. It is deployed in a hardcoded 'mongodb-etcd' model using the etcd charm module."
   type = object({
-    app_name           = optional(string, "etcd")
-    channel            = optional(string, "3.6/stable")
-    revision           = optional(string, null)
-    base               = optional(string, "ubuntu@24.04")
-    constraints        = optional(string, "arch=amd64")
-    config             = optional(map(string), {})
-    storage            = optional(map(string), {})
-    units              = optional(number, 3)
-    endpoint_bindings  = optional(map(string), {})
-    expose             = optional(bool, false)
+    app_name          = optional(string, "etcd")
+    channel           = optional(string, "3.6/stable")
+    revision          = optional(number, null)
+    base              = optional(string, "ubuntu@24.04")
+    constraints       = optional(string, "arch=amd64")
+    config            = optional(map(string), {})
+    storage           = optional(map(string), {})
+    units             = optional(number, 3)
+    machines          = optional(set(string), null)
+    endpoint_bindings = optional(map(string), {})
+    expose            = optional(bool, false)
   })
   default = {}
 }
@@ -202,7 +205,6 @@ variable "self_signed_certificates" {
 variable "opentelemetry_collector" {
   description = "OpenTelemetry Collector configuration for observability integration."
   type = object({
-    enabled     = optional(bool, false)
     app_name    = optional(string, "opentelemetry-collector")
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "2/stable")
