@@ -7,13 +7,13 @@ output "components" {
   value = merge(
     module.mongodb_sharded_cluster.components,
     {
-      self_signed_certificates        = module.self_signed_certificates
+      self_signed_certificates       = module.self_signed_certificates
       etcd                           = module.charmed_etcd.app_names.etcd
       etcd_self_signed_certificates  = module.charmed_etcd.app_names.self-signed-certificates
       opentelemetry_collector_config = juju_application.opentelemetry_collector_config
       opentelemetry_collector_shards = juju_application.opentelemetry_collector_shards
+      cos                            = module.cos.components
     }
-    # Note: Removed module.cos.components as COS module may not expose this output
   )
 }
 
@@ -27,7 +27,6 @@ output "models" {
   sensitive   = true
   value = merge(
     module.mongodb_sharded_cluster.models,
-    # Note: Removed module.cos.models as COS module may not expose this output
     {
       (juju_model.config_server.uuid) = {
         model_uuid = juju_model.config_server.uuid
@@ -66,7 +65,6 @@ output "offers" {
   description = "Map of offers exposed by the solution."
   value = merge(
     module.mongodb_sharded_cluster.offers,
-    # COS offers are used in integrations but may not be exposed as outputs
     try(module.cos.offers, {}),
     {
       mongodb_certificates = juju_offer.certificates.url

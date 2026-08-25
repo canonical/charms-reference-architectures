@@ -19,12 +19,12 @@ variable "models" {
   default = {}
 
   validation {
-    condition = length(var.models.shards) >= 1
+    condition     = length(var.models.shards) >= 1
     error_message = "At least one shard model must be configured."
   }
 
   validation {
-    condition = length(distinct(concat([var.models.config_server], var.models.shards))) == length(var.models.shards) + 1
+    condition     = length(distinct(concat([var.models.config_server], var.models.shards))) == length(var.models.shards) + 1
     error_message = "All model names (config server and shards) must be unique."
   }
 }
@@ -97,11 +97,11 @@ variable "mongos" {
 variable "shards" {
   description = "Configuration for MongoDB shards. Each shard will be deployed in the corresponding model from models.shards (matched by index)."
   type = list(object({
-    app_name           = string
-    base               = optional(string, "ubuntu@24.04")
-    channel            = optional(string, "8/stable")
-    config             = optional(map(string), { role = "shard" })
-    constraints        = optional(string, "arch=amd64")
+    app_name    = string
+    base        = optional(string, "ubuntu@24.04")
+    channel     = optional(string, "8/stable")
+    config      = optional(map(string), { role = "shard" })
+    constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -137,7 +137,7 @@ variable "data_integrator" {
   type = object({
     app_name    = optional(string, "data-integrator")
     base        = optional(string, "ubuntu@24.04")
-    channel     = optional(string, "latest/edge")
+    channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
     constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
@@ -203,14 +203,13 @@ variable "self_signed_certificates" {
 }
 
 variable "opentelemetry_collector" {
-  description = "OpenTelemetry Collector configuration for observability integration. Note: constraints are ignored as this is a subordinate charm."
+  description = "OpenTelemetry Collector configuration for observability integration."
   type = object({
-    app_name    = optional(string, "opentelemetry-collector")
-    base        = optional(string, "ubuntu@24.04")
-    channel     = optional(string, "2/stable")
-    config      = optional(map(string), {})
-    revision    = optional(number, null)
-    constraints = optional(string, "arch=amd64")  # Ignored - subordinate charms cannot have constraints
+    app_name = optional(string, "opentelemetry-collector")
+    base     = optional(string, "ubuntu@24.04")
+    channel  = optional(string, "2/stable")
+    config   = optional(map(string), {})
+    revision = optional(number, null)
   })
   default = {}
 }

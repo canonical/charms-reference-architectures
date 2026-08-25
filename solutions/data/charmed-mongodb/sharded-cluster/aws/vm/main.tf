@@ -1,6 +1,7 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+# Juju credentials are provided through the provider environment variables.
 provider "juju" {}
 
 # MongoDB models
@@ -23,7 +24,7 @@ resource "juju_model" "shards" {
       shard_config = shard
     }
   }
-  
+
   name       = each.value.name
   credential = var.model_config.credential
   cloud {
@@ -46,7 +47,7 @@ resource "juju_model" "etcd" {
   }
 }
 
-# COS (Charmed Observability Stack)
+
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
   model = {
@@ -70,33 +71,31 @@ module "cos" {
 
 # Etcd deployment using the charm module (etcd + self-signed certificates only)
 module "charmed_etcd" {
-  source = "git::https://github.com/canonical/charmed-etcd-operator//terraform/charm?ref=DPE-10183-tf-requirements"
+  source = "git::https://github.com/canonical/charmed-etcd-operator//terraform/charm?ref=3.6/edge"
 
-  # Core etcd parameters
-  model_uuid         = juju_model.etcd.uuid
-  app_name           = var.etcd.app_name
-  channel            = var.etcd.channel
-  revision           = var.etcd.revision
-  base               = var.etcd.base
-  config             = var.etcd.config
-  units              = var.etcd.units
-  constraints        = var.etcd.constraints
-  machines           = var.etcd.machines
-  storage            = var.etcd.storage
-  endpoint_bindings  = var.etcd.endpoint_bindings
-  expose             = var.etcd.expose
-  
-  # Enable TLS with self-signed certificates
+  model_uuid        = juju_model.etcd.uuid
+  app_name          = var.etcd.app_name
+  channel           = var.etcd.channel
+  revision          = var.etcd.revision
+  base              = var.etcd.base
+  config            = var.etcd.config
+  units             = var.etcd.units
+  constraints       = var.etcd.constraints
+  machines          = var.etcd.machines
+  storage           = var.etcd.storage
+  endpoint_bindings = var.etcd.endpoint_bindings
+  expose            = var.etcd.expose
+
   tls = true
   self-signed-certificates = {
     channel = "1/stable"
     config  = { "ca-common-name" = "Etcd CA" }
   }
-  
+
   depends_on = [juju_model.etcd]
 }
 
-# Etcd offer for MongoDB integration
+# Etcd offer for MongoDB integration (rollingops)
 resource "juju_offer" "etcd" {
   application_name = module.charmed_etcd.app_names.etcd
   endpoints        = ["etcd-client"]
@@ -135,13 +134,12 @@ resource "juju_application" "opentelemetry_collector_config" {
 
   name       = "${var.opentelemetry_collector.app_name}-config"
   config     = var.opentelemetry_collector.config
-  # Remove constraints for subordinate charms
   model_uuid = juju_model.config_server.uuid
 }
 
 resource "juju_application" "opentelemetry_collector_shards" {
   for_each = { for i, shard in var.shards : i => shard }
-  
+
   charm {
     name     = "opentelemetry-collector"
     channel  = var.opentelemetry_collector.channel
@@ -151,7 +149,6 @@ resource "juju_application" "opentelemetry_collector_shards" {
 
   name       = "${var.opentelemetry_collector.app_name}-shard${each.key + 1}"
   config     = var.opentelemetry_collector.config
-  # Remove constraints for subordinate charms
   model_uuid = juju_model.shards[each.key].uuid
 }
 
@@ -191,7 +188,7 @@ resource "juju_integration" "opentelemetry_collector_config_dashboards" {
 
 resource "juju_integration" "opentelemetry_collector_shards_prometheus" {
   for_each = { for i, shard in var.shards : i => shard }
-  
+
   model_uuid = juju_model.shards[each.key].uuid
   application {
     name     = juju_application.opentelemetry_collector_shards[each.key].name
@@ -204,7 +201,7 @@ resource "juju_integration" "opentelemetry_collector_shards_prometheus" {
 
 resource "juju_integration" "opentelemetry_collector_shards_loki" {
   for_each = { for i, shard in var.shards : i => shard }
-  
+
   model_uuid = juju_model.shards[each.key].uuid
   application {
     name     = juju_application.opentelemetry_collector_shards[each.key].name
@@ -217,7 +214,7 @@ resource "juju_integration" "opentelemetry_collector_shards_loki" {
 
 resource "juju_integration" "opentelemetry_collector_shards_dashboards" {
   for_each = { for i, shard in var.shards : i => shard }
-  
+
   model_uuid = juju_model.shards[each.key].uuid
   application {
     name     = juju_application.opentelemetry_collector_shards[each.key].name
@@ -254,8 +251,6 @@ module "mongodb_sharded_cluster" {
     machines     = var.s3_integrator.machines
     model_uuid   = juju_model.config_server.uuid
   }
-
-  # MongoDB TLS certificates integration (from config-server model)
   client_certificates_integration = {
     name       = module.self_signed_certificates.app_name
     endpoint   = "certificates"
@@ -268,16 +263,12 @@ module "mongodb_sharded_cluster" {
     model_uuid = juju_model.config_server.uuid
     url        = juju_offer.certificates.url
   }
-  
-  # Etcd integration (from separate etcd model)
   etcd_integration = {
     name       = module.charmed_etcd.app_names.etcd
     endpoint   = "etcd-client"
     model_uuid = juju_model.etcd.uuid
     url        = juju_offer.etcd.url
   }
-  
-  # COS integration via OpenTelemetry Collector applications (always present)
   cos_agent_integrations = merge(
     {
       "config-server" = {
@@ -292,8 +283,6 @@ module "mongodb_sharded_cluster" {
       }
     }
   )
-  
-  # Optional LDAP integrations
   ldap_integration = var.ldap_integration == null ? null : {
     kind = "offer"
     url  = var.ldap_integration.url
@@ -302,8 +291,6 @@ module "mongodb_sharded_cluster" {
     kind = "offer"
     url  = var.ldap_certificate_transfer_integration.url
   }
-  
-  # Optional Vault integration
   vault_kv_integration = var.vault_kv_integration == null ? null : {
     kind = "offer"
     url  = var.vault_kv_integration.url
