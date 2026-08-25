@@ -3,6 +3,7 @@
 
 output "components" {
   description = "Map of all components deployed by the solution."
+  sensitive   = true
   value = merge(
     module.mongodb_sharded_cluster.components,
     {
@@ -23,6 +24,7 @@ output "metadata" {
 
 output "models" {
   description = "Map keyed by model UUID containing the components deployed in each model."
+  sensitive   = true
   value = merge(
     module.mongodb_sharded_cluster.models,
     # Note: Removed module.cos.models as COS module may not expose this output
