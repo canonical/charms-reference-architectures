@@ -63,7 +63,7 @@ resource "juju_application" "opentelemetry_collector" {
 }
 
 module "mongodb_replica_set" {
-  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/replica_set?ref=8/edge"
+  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/replica_set?ref=DPE-10559-sharded-vm-aws"
 
   mongodb = merge(var.mongodb, {
     model_uuid = juju_model.mongodb.uuid

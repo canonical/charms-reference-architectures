@@ -230,7 +230,7 @@ resource "juju_integration" "opentelemetry_collector_shards_dashboards" {
 
 # MongoDB sharded cluster
 module "mongodb_sharded_cluster" {
-  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/sharded_cluster?ref=8/edge"
+  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/sharded_cluster?ref=DPE-10559-sharded-vm-aws"
 
   config_server = merge(var.config_server, {
     model_uuid = juju_model.config_server.uuid
