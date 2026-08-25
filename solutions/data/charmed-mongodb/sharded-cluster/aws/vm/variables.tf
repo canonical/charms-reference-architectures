@@ -203,14 +203,14 @@ variable "self_signed_certificates" {
 }
 
 variable "opentelemetry_collector" {
-  description = "OpenTelemetry Collector configuration for observability integration."
+  description = "OpenTelemetry Collector configuration for observability integration. Note: constraints are ignored as this is a subordinate charm."
   type = object({
     app_name    = optional(string, "opentelemetry-collector")
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "2/stable")
     config      = optional(map(string), {})
     revision    = optional(number, null)
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64")  # Ignored - subordinate charms cannot have constraints
   })
   default = {}
 }

@@ -133,10 +133,10 @@ resource "juju_application" "opentelemetry_collector_config" {
     base     = var.opentelemetry_collector.base
   }
 
-  name        = "${var.opentelemetry_collector.app_name}-config"
-  config      = var.opentelemetry_collector.config
-  constraints = var.opentelemetry_collector.constraints
-  model_uuid  = juju_model.config_server.uuid
+  name       = "${var.opentelemetry_collector.app_name}-config"
+  config     = var.opentelemetry_collector.config
+  # Remove constraints for subordinate charms
+  model_uuid = juju_model.config_server.uuid
 }
 
 resource "juju_application" "opentelemetry_collector_shards" {
@@ -149,10 +149,10 @@ resource "juju_application" "opentelemetry_collector_shards" {
     base     = var.opentelemetry_collector.base
   }
 
-  name        = "${var.opentelemetry_collector.app_name}-shard-${each.key + 1}"
-  config      = var.opentelemetry_collector.config
-  constraints = var.opentelemetry_collector.constraints
-  model_uuid  = juju_model.shards[each.key].uuid
+  name       = "${var.opentelemetry_collector.app_name}-shard${each.key + 1}"
+  config     = var.opentelemetry_collector.config
+  # Remove constraints for subordinate charms
+  model_uuid = juju_model.shards[each.key].uuid
 }
 
 # COS integrations for OpenTelemetry Collectors (always deployed)
