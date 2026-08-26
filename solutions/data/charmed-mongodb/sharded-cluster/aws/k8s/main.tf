@@ -64,7 +64,13 @@ module "self_signed_certificates" {
   units       = var.self_signed_certificates.units
 }
 
-# MongoDB sharded cluster
+# Certificates offer meant to be used by the shards
+resource "juju_offer" "certificates" {
+  application_name = module.self_signed_certificates.app_name
+  endpoints        = ["certificates"]
+  model_uuid       = juju_model.config_server.uuid
+}
+
 module "mongodb_sharded_cluster" {
   source = "git::https://github.com/canonical/mongodb-k8s-operator//terraform/product/sharded_cluster?ref=8/edge"
 
@@ -91,14 +97,16 @@ module "mongodb_sharded_cluster" {
     model_uuid   = juju_model.config_server.uuid
   }
   client_certificates_integration = {
-    kind     = "endpoint"
-    name     = module.self_signed_certificates.app_name
-    endpoint = module.self_signed_certificates.provides["certificates"]
+    name       = module.self_signed_certificates.app_name
+    endpoint   = "certificates"
+    model_uuid = juju_model.config_server.uuid
+    url        = juju_offer.certificates.url
   }
   peer_certificates_integration = {
-    kind     = "endpoint"
-    name     = module.self_signed_certificates.app_name
-    endpoint = module.self_signed_certificates.provides["certificates"]
+    name       = module.self_signed_certificates.app_name
+    endpoint   = "certificates"
+    model_uuid = juju_model.config_server.uuid
+    url        = juju_offer.certificates.url
   }
   grafana_dashboard_integration = {
     kind = "offer"

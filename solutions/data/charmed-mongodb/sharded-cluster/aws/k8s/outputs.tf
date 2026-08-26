@@ -54,7 +54,10 @@ output "offers" {
   description = "Map of offers exposed by the solution."
   value = merge(
     module.mongodb_sharded_cluster.offers,
-    try(module.cos.offers, {})
+    module.cos.offers,
+    {
+      mongodb_certificates = juju_offer.certificates.url
+    }
   )
 }
 

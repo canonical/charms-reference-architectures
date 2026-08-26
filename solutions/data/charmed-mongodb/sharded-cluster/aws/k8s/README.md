@@ -17,6 +17,8 @@ The deployment uses a scalable number of Kubernetes models:
   optional S3 integrator, and self-signed-certificates for MongoDB TLS.
 - Dynamic shard models: Each shard is deployed in its own model with either 
   custom names or auto-generated names (mongodb-shard-1, mongodb-shard-2, etc.)
+- Cross-model certificate integration: The self-signed-certificates application
+  in the config-server model provides TLS certificates to all shards via offers.
 
 ## Requirements
 
@@ -53,6 +55,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | --------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `juju_model.config_server`  | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
 | `juju_model.shards`         | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
+| `juju_offer.certificates`   | [Juju offer](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/offer)             |
 
 Applications, integrations, offers, secrets, and COS resources are managed by
 the child modules listed above.
@@ -326,13 +329,3 @@ cos = {
   }
 }
 ```
-
-## Differences from VM Deployment
-
-This Kubernetes deployment differs from the VM version in several key ways:
-
-- **No etcd dependency**: Kubernetes provides its own coordination mechanisms
-- **Direct COS integrations**: Uses native Kubernetes observability patterns instead of OpenTelemetry Collector
-- **Simplified networking**: Leverages Kubernetes service mesh and networking
-- **Cloud-native storage**: Uses Kubernetes persistent volumes instead of machine storage
-- **Container orchestration**: Benefits from Kubernetes pod management and scaling capabilities

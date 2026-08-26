@@ -49,18 +49,12 @@ variable "config_server" {
     app_name    = optional(string, "config-server")
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
-    config      = optional(map(string), { role = "config-server" })
+    config      = optional(map(string), { "role" : "config-server" })
     constraints = optional(string, "arch=amd64")
-    endpoint_bindings = optional(set(object({
-      space    = string
-      endpoint = optional(string)
-    })), [])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
-      spaces    = optional(string)
     })), [])
-    machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
     units              = optional(number, 3)
@@ -71,15 +65,13 @@ variable "config_server" {
 variable "mongos" {
   description = "Mongos application configuration."
   type = object({
-    app_name = optional(string, "mongos")
-    base     = optional(string, "ubuntu@24.04")
-    channel  = optional(string, "8/stable")
-    config   = optional(map(string), {})
-    endpoint_bindings = optional(set(object({
-      space    = string
-      endpoint = optional(string)
-    })), [])
-    revision = optional(number, null)
+    app_name    = optional(string, "mongos")
+    base        = optional(string, "ubuntu@24.04")
+    channel     = optional(string, "8/stable")
+    config      = optional(map(string), {})
+    constraints = optional(string, "arch=amd64")
+    revision    = optional(number, null)
+    units       = optional(number, 3)
   })
   default = {}
 }
@@ -90,18 +82,12 @@ variable "shards" {
     app_name    = string
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
-    config      = optional(map(string), { role = "shard" })
+    config      = optional(map(string), { "role" : "shard" })
     constraints = optional(string, "arch=amd64")
-    endpoint_bindings = optional(set(object({
-      space    = string
-      endpoint = optional(string)
-    })), [])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
-      spaces    = optional(string)
     })), [])
-    machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
     units              = optional(number, 3)
@@ -124,11 +110,11 @@ variable "shards" {
 
 variable "data_integrator" {
   description = "Data-integrator configuration. It is deployed in the config-server model."
-  type = object({
+    type = object({
     app_name    = optional(string, "data-integrator")
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
-    config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
+    config      = optional(map(string), { "database-name" : "test", "extra-user-roles" : "admin" })
     constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
       space    = string
