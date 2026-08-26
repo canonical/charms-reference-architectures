@@ -7,15 +7,15 @@ variable "mongodb_model" {
   default     = "mongodb"
 }
 
-variable "vpc_id" {
-  description = "Optional Azure VPC ID shared by the solution infrastructure. Juju applies it to the Azure MongoDB model. This setting is immutable after model creation. Required if you use the `clouds/azure` module in this repository to configure the Azure cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own Azure cloud configuration and Juju controller placement."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.vpc_id == null || can(regex("^vpc-[0-9a-f]+$", var.vpc_id))
-    error_message = "vpc_id must be a valid Azure VPC ID such as vpc-0123456789abcdef0."
-  }
+variable "remote-state" {
+  description = "Configuration for the remote state to reference Azure infrastructure created by the clouds/azure module"
+  type = object({
+    resource_group_name  = optional(string, "tfstate-rg")
+    storage_account_name = string
+    container_name       = optional(string, "tfstate")
+    key                  = optional(string, "infra.terraform.tfstate")
+  })
+  default = null
 }
 
 variable "cos" {

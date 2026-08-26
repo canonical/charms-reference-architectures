@@ -1,6 +1,13 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+# Data source to reference Azure infrastructure created by clouds/azure module
+data "terraform_remote_state" "infra_state" {
+  count   = var.remote-state != null ? 1 : 0
+  backend = "azurerm"
+  config  = var.remote-state
+}
+
 # Juju credentials are provided through the provider environment variables.
 provider "juju" {}
 
@@ -9,9 +16,10 @@ resource "juju_model" "mongodb" {
   cloud {
     name = "azure"
   }
-  config = var.vpc_id == null ? {} : {
-    "vpc-id" = var.vpc_id
-  }
+  config = var.remote-state != null ? {
+    "resource-group-name" = data.terraform_remote_state.infra_state[0].outputs.infrastructure.resource_group_name
+    "network"             = data.terraform_remote_state.infra_state[0].outputs.infrastructure.vnet_name
+  } : {}
 }
 
 
@@ -103,7 +111,8 @@ module "mongodb_replica_set" {
   }
 
   depends_on = [
-    juju_model.mongodb,
+    module.self_signed_certificates,
+    juju_application.opentelemetry_collector,
   ]
 }
 
