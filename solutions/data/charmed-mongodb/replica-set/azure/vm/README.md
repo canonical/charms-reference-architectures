@@ -155,17 +155,32 @@ export TF_VAR_remote_state='{
 }'
 ```
 
-Deploy the solution in two steps. First, create the MongoDB model:
+Deploy the solution in three steps to handle dependencies properly:
+
+**Step 1: Create the MongoDB model and COS model**
 
 ```bash
 terraform plan \
   -target=juju_model.mongodb \
+  -target=module.cos \
   -var="remote-state=${TF_VAR_remote_state}" \
-  -out mongodb-model.out
-terraform apply mongodb-model.out
+  -out mongodb-models.out
+terraform apply mongodb-models.out
 ```
 
-Then plan and apply the rest of the solution:
+**Step 2: Deploy the core MongoDB applications**
+
+```bash
+terraform plan \
+  -target=module.mongodb_replica_set \
+  -target=module.self_signed_certificates \
+  -target=juju_application.opentelemetry_collector \
+  -var="remote-state=${TF_VAR_remote_state}" \
+  -out mongodb-apps.out
+terraform apply mongodb-apps.out
+```
+
+**Step 3: Apply the final integrations**
 
 ```bash
 terraform plan \
