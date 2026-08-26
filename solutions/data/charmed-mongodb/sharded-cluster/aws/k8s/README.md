@@ -227,17 +227,7 @@ Initialize Terraform:
 terraform init
 ```
 
-Deploy the solution in two steps. First, create the MongoDB models:
-
-```bash
-terraform plan \
-  -target=juju_model.config_server \
-  -target=juju_model.shards \
-  -out mongodb-models.out
-terraform apply mongodb-models.out
-```
-
-Then plan and apply the rest of the solution:
+Plan and apply the solution:
 
 ```bash
 terraform plan \
