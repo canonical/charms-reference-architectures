@@ -18,6 +18,7 @@ output "metadata" {
 
 output "models" {
   description = "Map keyed by model UUID containing the components deployed in each model."
+  sensitive   = true
   value = merge(module.mongodb_replica_set.models, {
     (juju_model.mongodb.uuid) = {
       model_uuid = juju_model.mongodb.uuid

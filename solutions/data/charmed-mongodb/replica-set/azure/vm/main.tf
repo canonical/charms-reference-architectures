@@ -19,7 +19,9 @@ resource "juju_model" "mongodb" {
   config = var.remote-state != null ? {
     "resource-group-name" = data.terraform_remote_state.infra_state[0].outputs.infrastructure.resource_group_name
     "network"             = data.terraform_remote_state.infra_state[0].outputs.infrastructure.vnet_name
-  } : {}
+  } : var.vpc_id == null ? {} : {
+    "vpc-id" = var.vpc_id
+  }
 }
 
 
@@ -111,8 +113,7 @@ module "mongodb_replica_set" {
   }
 
   depends_on = [
-    module.self_signed_certificates,
-    juju_application.opentelemetry_collector,
+    juju_model.mongodb,
   ]
 }
 
