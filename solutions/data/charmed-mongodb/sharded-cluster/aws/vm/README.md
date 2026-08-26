@@ -45,7 +45,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 
 | Name                       | Source                                                                    |
 | -------------------------- | ------------------------------------------------------------------------- |
-| `mongodb_sharded_cluster`  | `canonical/mongodb-operator//terraform/product/sharded_cluster` (`8/stable`) |
+| `mongodb_sharded_cluster`  | `canonical/mongodb-operator//terraform/product/sharded_cluster` (`8/edge`) |
 | `charmed_etcd`             | `canonical/charmed-etcd-operator//terraform/charm` (`3.6/edge`)              |
 | `cos`                      | `canonical/observability-stack//terraform/cos-lite` (`tf-cos-lite-3.0.2`) |
 | `self_signed_certificates` | `canonical/self-signed-certificates-operator//terraform` (`main`)         |

@@ -73,18 +73,18 @@ module "cos" {
 module "charmed_etcd" {
   source = "git::https://github.com/canonical/charmed-etcd-operator//terraform/charm?ref=3.6/edge"
 
-  model_uuid        = juju_model.etcd.uuid
   app_name          = var.etcd.app_name
-  channel           = var.etcd.channel
-  revision          = var.etcd.revision
   base              = var.etcd.base
+  channel           = var.etcd.channel
   config            = var.etcd.config
-  units             = var.etcd.units
   constraints       = var.etcd.constraints
-  machines          = var.etcd.machines
-  storage           = var.etcd.storage
   endpoint_bindings = var.etcd.endpoint_bindings
   expose            = var.etcd.expose
+  machines          = var.etcd.machines
+  model_uuid        = juju_model.etcd.uuid
+  revision          = var.etcd.revision
+  storage           = var.etcd.storage
+  units             = var.etcd.units
 
   tls = true
   self-signed-certificates = {
@@ -95,7 +95,7 @@ module "charmed_etcd" {
   depends_on = [juju_model.etcd]
 }
 
-# Etcd offer for MongoDB integration (rollingops)
+# Etcd offer for config server and shards integration (rollingops)
 resource "juju_offer" "etcd" {
   application_name = module.charmed_etcd.app_names.etcd
   endpoints        = ["etcd-client"]
@@ -116,7 +116,7 @@ module "self_signed_certificates" {
   units       = var.self_signed_certificates.units
 }
 
-# MongoDB certificates offer
+# Certificates offer meant to be used by the shards
 resource "juju_offer" "certificates" {
   application_name = module.self_signed_certificates.app_name
   endpoints        = ["certificates"]
@@ -227,7 +227,7 @@ resource "juju_integration" "opentelemetry_collector_shards_dashboards" {
 
 # MongoDB sharded cluster
 module "mongodb_sharded_cluster" {
-  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/sharded_cluster?ref=DPE-10559-sharded-vm-aws"
+  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/sharded_cluster?ref=8/edge"
 
   config_server = merge(var.config_server, {
     model_uuid = juju_model.config_server.uuid
