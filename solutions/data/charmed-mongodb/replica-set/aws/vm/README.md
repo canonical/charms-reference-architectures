@@ -1,4 +1,4 @@
-# Terraform module for mongodb-operator
+# Terraform module for MongoDB replica set
 
 This Terraform root module facilitates the deployment of a Charmed MongoDB
 replica set on AWS VMs using the
