@@ -77,7 +77,9 @@ module "mongodb_sharded_cluster" {
   config_server = merge(var.config_server, {
     model_uuid = juju_model.config_server.uuid
   })
-  mongos = var.mongos
+  mongos = merge(var.mongos, {
+    model_uuid = juju_model.config_server.uuid
+  })
   shards = [
     for i, shard in var.shards : merge(shard, {
       model_uuid = juju_model.shards[i].uuid
@@ -109,16 +111,22 @@ module "mongodb_sharded_cluster" {
     url        = juju_offer.certificates.url
   }
   grafana_dashboard_integration = {
-    kind = "offer"
-    url  = module.cos.offers.grafana_dashboards.url
+    name       = module.cos.components.grafana.app_name
+    endpoint   = module.cos.components.grafana.requires.grafana_dashboard
+    model_uuid = module.cos.model_uuid
+    url        = module.cos.offers.grafana_dashboards.url
   }
   metrics_endpoint_integration = {
-    kind = "offer"
-    url  = module.cos.offers.prometheus_metrics_endpoint.url
+    name       = module.cos.components.prometheus.app_name
+    endpoint   = module.cos.components.prometheus.requires.metrics_endpoint
+    model_uuid = module.cos.model_uuid
+    url        = module.cos.offers.prometheus_metrics_endpoint.url
   }
   logging_integration = {
-    kind = "offer"
-    url  = module.cos.offers.loki_logging.url
+    name       = module.cos.components.loki.app_name
+    endpoint   = module.cos.components.loki.provides.logging
+    model_uuid = module.cos.model_uuid
+    url        = module.cos.offers.loki_logging.url
   }
   ldap_integration = var.ldap_integration == null ? null : {
     kind = "offer"
