@@ -54,7 +54,6 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | Name                                    | Description                                                                                                                                                                                       | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default         | Required   |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | :--------: |
 | `mongodb_model`                         | Name of the azure VM model                                                                                                                                                                          | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `"mongodb"`     | no         |
-| `vpc_id`                                | Azure VPC ID for the MongoDB model. Required with this repository's `clouds/azure` module; otherwise optional                                                                                          | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `null`          | no         |
 | `remote-state`                          | Configuration for remote state to reference Azure infrastructure created by the clouds/azure module                                                                                                 | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `null`          | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`            | no         |
 | `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
@@ -145,11 +144,9 @@ Initialize Terraform:
 terraform init
 ```
 
-Configure your Azure infrastructure reference. You have two options:
+Configure your Azure infrastructure reference using the remote state from your clouds/azure deployment:
 
-**Option A: Using remote state (recommended for clouds/azure module users)**
-
-Replace `tfstatevzzjb8fy` with your actual storage account name from the clouds/azure deployment:
+Replace `tfstatevzzjb8fy` with your actual storage account name:
 
 ```bash
 export TF_VAR_remote_state='{
@@ -160,78 +157,55 @@ export TF_VAR_remote_state='{
 }'
 ```
 
-**Option B: Using vpc_id (alternative approach)**
+Deploy the solution in two steps:
 
-Retrieve the controller's VPC ID and expose it to Terraform:
+**Step 1: Deploy the MongoDB model**
 
-```bash
-export TF_VAR_vpc_id="$(juju model-config -m azure:controller vpc-id)"
-```
-
-Replace `azure` with your controller name if it differs.
-
-Deploy the solution in three steps to handle dependencies properly:
-
-**Step 1: Create the MongoDB model and COS model**
-
-Using remote state:
 ```bash
 terraform plan \
   -target=juju_model.mongodb \
-  -target=module.cos \
   -var="remote-state=${TF_VAR_remote_state}" \
-  -out mongodb-models.out
-terraform apply mongodb-models.out
+  -out mongodb-model.out
+terraform apply mongodb-model.out
 ```
 
-Or using vpc_id:
-```bash
-terraform plan \
-  -target=juju_model.mongodb \
-  -target=module.cos \
-  -var="vpc_id=${TF_VAR_vpc_id}" \
-  -out mongodb-models.out
-terraform apply mongodb-models.out
-```
+**Step 2: Deploy the complete solution**
 
-**Step 2: Deploy the core MongoDB applications**
-
-Using remote state:
-```bash
-terraform plan \
-  -target=module.mongodb_replica_set \
-  -target=module.self_signed_certificates \
-  -target=juju_application.opentelemetry_collector \
-  -var="remote-state=${TF_VAR_remote_state}" \
-  -out mongodb-apps.out
-terraform apply mongodb-apps.out
-```
-
-Or using vpc_id:
-```bash
-terraform plan \
-  -target=module.mongodb_replica_set \
-  -target=module.self_signed_certificates \
-  -target=juju_application.opentelemetry_collector \
-  -var="vpc_id=${TF_VAR_vpc_id}" \
-  -out mongodb-apps.out
-terraform apply mongodb-apps.out
-```
-
-**Step 3: Apply the final integrations**
-
-Using remote state:
 ```bash
 terraform plan \
   -var="remote-state=${TF_VAR_remote_state}" \
-  -out terraform.out
-terraform apply terraform.out
+  -out mongodb-complete.out
+terraform apply mongodb-complete.out
 ```
 
-Or using vpc_id:
+## Troubleshooting
+
+### Suspended Model Due to Credential Issues
+
+If your model shows as "suspended" with credential errors:
+
 ```bash
-terraform plan \
-  -var="vpc_id=${TF_VAR_vpc_id}" \
-  -out terraform.out
-terraform apply terraform.out
+# Update credentials on both client and controller
+juju update-credential azure azure-option-one
+# Choose option 3 (both) when prompted
+
+# Configure model to use existing resource group
+juju model-config -m mongodb \
+  resource-group-name="juju-mongodb-rg" \
+  network="main-vnet"
+```
+
+### Model Provisioning Issues
+
+If applications are waiting for machines, check the model status:
+
+```bash
+# Check model status
+juju show-model mongodb
+
+# Check machine provisioning
+juju machines -m mongodb
+
+# Check application status
+juju status -m mongodb
 ```
