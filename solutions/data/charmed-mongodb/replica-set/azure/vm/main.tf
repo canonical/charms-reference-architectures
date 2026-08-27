@@ -3,7 +3,6 @@
 
 # Data source to reference Azure infrastructure created by clouds/azure module
 data "terraform_remote_state" "infra_state" {
-  count   = var.remote-state != null ? 1 : 0
   backend = "azurerm"
   config  = var.remote-state
 }
@@ -16,11 +15,9 @@ resource "juju_model" "mongodb" {
   cloud {
     name = "azure"
   }
-  config = var.remote-state != null ? {
-    "resource-group-name" = data.terraform_remote_state.infra_state[0].outputs.infrastructure.resource_group_name
-    "network"             = data.terraform_remote_state.infra_state[0].outputs.infrastructure.vnet_name
-  } : var.vpc_id == null ? {} : {
-    "vpc-id" = var.vpc_id
+  config = {
+    "resource-group-name" = data.terraform_remote_state.infra_state.outputs.infrastructure.resource_group_name
+    "network"             = data.terraform_remote_state.infra_state.outputs.infrastructure.vnet_name
   }
 }
 

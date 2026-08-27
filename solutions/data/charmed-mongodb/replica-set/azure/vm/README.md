@@ -150,8 +150,8 @@ Replace `tfstatevzzjb8fy` with your actual storage account name:
 
 ```bash
 export TF_VAR_remote_state='{
-  "storage_account_name": "tfstatevzzjb8fy",
-  "resource_group_name": "tfstate-rg",
+  "storage_account_name": "tfstatef994zvhp",
+  "resource_group_name": "juju-mongodb22-rg",
   "container_name": "tfstate",
   "key": "infra.terraform.tfstate"
 }'
