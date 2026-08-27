@@ -1,4 +1,4 @@
-# Terraform module for mongodb-operator
+# Terraform module for MongoDB replica set
 
 This Terraform root module facilitates the deployment of a Charmed MongoDB
 replica set on Azure VMs using the
@@ -8,7 +8,7 @@ For more information, refer to the provider
 
 The solution deploys MongoDB with a data integrator, TLS certificates,
 OpenTelemetry Collector, and COS Lite. It can also integrate with existing LDAP
-and Vault deployments and an optional S3 integrator for backups.
+and Vault deployments.
 
 ## Requirements
 
@@ -17,6 +17,7 @@ and Vault deployments and an optional S3 integrator for backups.
 | Terraform     | >= 1.6       |
 | Juju provider | ~> 2.0       |
 | Juju          | 3.6 or later |
+| Azure CLI     | latest       |
 
 An Azure cloud and credential must be configured in Juju. A Kubernetes cloud and
 credential named `k8s` are used for COS Lite by default and can be overridden
@@ -58,7 +59,6 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`            | no         |
 | `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
 | `data_integrator`                       | Data-integrator application configuration                                                                                                                                                         | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`            | no         |
-| `s3_integrator`                         | Optional S3 backup-integrator configuration                                                                                                                                                       | <pre>object({<br/>  config      = map(string)<br/>  channel     = optional(string, "2/stable")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  revision    = optional(number, null)<br/>  constraints = optional(string, "arch=amd64")<br/>  machines    = optional(set(string), [])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `null`          | no         |
 | `tls_client_private_key`                | Optional PEM private key for MongoDB client-to-server TLS                                                                                                                                         | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
 | `tls_peer_private_key`                  | Optional PEM private key for MongoDB peer-to-peer TLS                                                                                                                                             | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
 | `logging_config`                        | Logging configuration used by the MongoDB replica-set module                                                                                                                                     | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `"<root>=INFO"` | no         |
@@ -138,6 +138,12 @@ integrations across the Azure VM and Kubernetes models.
 
 ![Charmed MongoDB replica set deployment](docs/replica-set-azure-vm.excalidraw.svg)
 
+Authenticate with Azure before initializing or applying the Terraform module:
+
+```bash
+az login
+```
+
 Initialize Terraform:
 
 ```bash
@@ -146,12 +152,13 @@ terraform init
 
 Configure your Azure infrastructure reference using the remote state from your clouds/azure deployment:
 
-Replace `tfstatevzzjb8fy` with your actual storage account name:
+Define `TF_VAR_remote_state` using the appropriate values. See
+[`variables.tf`](variables.tf) for the default values.
 
 ```bash
 export TF_VAR_remote_state='{
-  "storage_account_name": "tfstatef994zvhp",
-  "resource_group_name": "juju-mongodb22-rg",
+  "storage_account_name": "YOUR_STORAGE_ACCOUNT_NAME",
+  "resource_group_name": "YOUR_RESOURCE_GROUP_NAME",
   "container_name": "tfstate",
   "key": "infra.terraform.tfstate"
 }'
@@ -176,36 +183,4 @@ terraform plan \
   -var="remote-state=${TF_VAR_remote_state}" \
   -out mongodb-complete.out
 terraform apply mongodb-complete.out
-```
-
-## Troubleshooting
-
-### Suspended Model Due to Credential Issues
-
-If your model shows as "suspended" with credential errors:
-
-```bash
-# Update credentials on both client and controller
-juju update-credential azure azure-option-one
-# Choose option 3 (both) when prompted
-
-# Configure model to use existing resource group
-juju model-config -m mongodb \
-  resource-group-name="juju-mongodb-rg" \
-  network="main-vnet"
-```
-
-### Model Provisioning Issues
-
-If applications are waiting for machines, check the model status:
-
-```bash
-# Check model status
-juju show-model mongodb
-
-# Check machine provisioning
-juju machines -m mongodb
-
-# Check application status
-juju status -m mongodb
 ```
