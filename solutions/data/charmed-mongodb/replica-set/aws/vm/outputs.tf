@@ -3,6 +3,7 @@
 
 output "components" {
   description = "Map of all components deployed by the solution."
+  sensitive   = true
   value = merge(module.mongodb_replica_set.components, {
     self_signed_certificates = module.self_signed_certificates
     opentelemetry_collector  = juju_application.opentelemetry_collector
@@ -17,6 +18,7 @@ output "metadata" {
 
 output "models" {
   description = "Map keyed by model UUID containing the components deployed in each model."
+  sensitive   = true
   value = merge(module.mongodb_replica_set.models, {
     (juju_model.mongodb.uuid) = {
       model_uuid = juju_model.mongodb.uuid
