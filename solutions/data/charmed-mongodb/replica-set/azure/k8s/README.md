@@ -56,6 +56,9 @@ the child modules listed above.
 | `cos`                                   | COS model and storage configuration. The storage defaults are intended only for testing.                              | <pre>object({<br/>  model_name                    = optional(string, "cos")<br/>  cloud                         = optional(string, "k8s")<br/>  credential                    = optional(string, "k8s")<br/>  risk                          = optional(string, "stable")<br/>  grafana_storage_directives    = optional(map(string), { database = "1G" })<br/>  loki_storage_directives       = optional(map(string), { active-index-directory = "1G", loki-chunks = "1G" })<br/>  prometheus_storage_directives = optional(map(string), { database = "1G" })<br/>})</pre> | `{}`            | no       |
 | `mongodb`                               | MongoDB replica-set application configuration.                                                                        | <pre>object({<br/>  app_name    = optional(string, "mongodb-k8s")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  channel     = optional(string, "8/stable")<br/>  config      = optional(map(string), { role = "replication" })<br/>  constraints = optional(string, "arch=amd64")<br/>  expose      = optional(list(object({<br/>    cidrs     = optional(string)<br/>    endpoints = optional(string)<br/>  })), [])<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no       |
 | `data_integrator`                       | Data-integrator application configuration.                                                                            | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre> | `{}`            | no       |
+| `s3_integrator`                         | Optional S3-compatible backup-integrator configuration.                                                               | <pre>object({<br/>  base        = optional(string, "ubuntu@24.04")<br/>  channel     = optional(string, "2/stable")<br/>  config      = map(string)<br/>  constraints = optional(string, "arch=amd64")<br/>  machines    = optional(set(string), [])<br/>  revision    = optional(number, null)<br/>})</pre> | `null`          | no       |
+| `s3_access_key`                         | Optional access key for S3-compatible object storage.                                                                 | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
+| `s3_secret_key`                         | Optional secret key for S3-compatible object storage.                                                                 | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
 | `self_signed_certificates`              | Self-signed certificate provider configuration.                                                                       | <pre>object({<br/>  app_name    = optional(string, "self-signed-certificates")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  channel     = optional(string, "1/stable")<br/>  config      = optional(map(string), { ca-common-name = "MongoDB CA" })<br/>  constraints = optional(string, "arch=amd64")<br/>  revision    = optional(number, null)<br/>  units       = optional(number, 1)<br/>})</pre> | `{}`            | no       |
 | `tls_client_private_key`                | Optional PEM private key for MongoDB client-to-server TLS certificates.                                                | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
 | `tls_peer_private_key`                  | Optional PEM private key for MongoDB peer-to-peer TLS certificates.                                                    | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
@@ -118,6 +121,35 @@ Follow the
 [`vault` charm documentation](https://charmhub.io/vault/docs/h-initialize-vault)
 to prepare it before applying this module.
 
+### S3-compatible backups
+
+The object-storage bucket or container must exist before deploying this
+solution. The supplied credentials must be able to list it and read, create,
+and delete objects under the configured path.
+
+Configure the backup integrator with the endpoint exposed by your
+S3-compatible storage service:
+
+```hcl
+s3_integrator = {
+  config = {
+    bucket   = "my-mongodb-backups"
+    region   = "my-region"
+    endpoint = "https://my-s3-compatible-endpoint.example.com"
+    path     = "mongodb"
+  }
+}
+```
+
+Provide credentials using sensitive Terraform environment variables:
+
+```bash
+export TF_VAR_s3_access_key="<s3-access-key>"
+export TF_VAR_s3_secret_key="<s3-secret-key>"
+```
+
+The exact endpoint, region, and addressing requirements depend on the selected
+S3-compatible service.
 
 ### TLS certificates
 
