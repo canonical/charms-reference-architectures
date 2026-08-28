@@ -32,7 +32,10 @@ The module exposes the following configurable input variables.
 | `SSH_PRIVATE_KEY`       | `string`       | Path to the SSH private key used to access the bastion.                                                                                                       | **Yes if `PROVISION_BASTION` is `true`** | `null`          |
 | `SOURCE_ADDRESSES`      | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) or service tags (e.g., `["VirtualNetwork", "AzureLoadBalancer"]`) allowed for inbound NSG rules. | No                                       | `null`          |
 | `AKS_CLUSTER_NAME`      | `string`       | The name of the Azure Kubernetes Service (AKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an AKS cluster.               | No                                       | `"aks-cluster"` |
+| `AKS_NODE_COUNT`        | `number`       | Number of nodes in the default AKS node pool.                                                                                                                  | No                                       | `3`             |
+| `AKS_NODE_VM_SIZE`      | `string`       | VM size for the default AKS node pool. The default supports persistent workloads requiring a high Azure Disk attachment count.                                | No                                       | `"Standard_D16s_v3"` |
 | `SETUP_LOCAL_HOST`      | `bool`         | Whether to set up the host machine with Juju and deploy the Juju controller. This typically involves running a remote-exec provisioner.                       | No                                       | `false`         |
+| `CONTROLLER_CONSTRAINTS` | `string`      | Juju constraints used to provision the controller machine.                                                                                                    | No                                       | `"cores=4 mem=8G"` |
 
 ---
 
@@ -108,7 +111,10 @@ terraform plan -out terraform.out \
     -var="SSH_PRIVATE_KEY=~/.ssh/id_rsa"          \  # required ONLY IF PROVISION_BASTION is true, your SSH private key to ssh into the Bastion
     -var='SOURCE_ADDRESSES=["123.45.67.12/32"]'   \  # optional, put your host's (Public) IP address to be allowed to ssh into the Bastion, defaults to null/[0.0.0.0/0]
     -var="AKS_CLUSTER_NAME=myAKSCluster"          \  # optional, defaults to "aks-cluster", set to "" if you do not want to provision an AKS cluster
+    -var="AKS_NODE_COUNT=3"                       \  # optional, defaults to 3
+    -var="AKS_NODE_VM_SIZE=Standard_D16s_v3"      \  # optional, defaults to Standard_D16s_v3
     -var="SETUP_LOCAL_HOST=false"                 \  # optional, defaults to false, set to true if you don't want a bastion and you want to set up the local host with Juju and deploy the controller
+    -var="CONTROLLER_CONSTRAINTS=cores=4 mem=8G"     # optional, defaults to "cores=4 mem=8G"
 
 terraform apply terraform.out
 
@@ -133,11 +139,19 @@ module "juju_azure_infra" {
   ssh_private_key           = var.ssh_private_key
   source_address_prefixes   = var.source_address_prefixes
   aks_cluster_name          = var.aks_cluster_name
+  AKS_NODE_COUNT            = var.aks_node_count
+  AKS_NODE_VM_SIZE          = var.aks_node_vm_size
   setup_local_host          = var.setup_local_host
 }
 ```
 
+AKS limits the number of Azure Disks that can be attached to each node based on
+the selected VM size. Storage-heavy deployments such as a MongoDB sharded
+cluster should use a VM size with sufficient data-disk attachment capacity.
+Increasing `AKS_NODE_COUNT` adds attachment capacity horizontally; increasing
+`AKS_NODE_VM_SIZE` can increase the per-node attachment limit. Confirm the
+effective limit after provisioning with `kubectl get csinode`.
+
 ## License
 
 This module is licensed under the [Apache License](../../LICENSE).
-

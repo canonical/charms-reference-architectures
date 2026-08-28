@@ -58,6 +58,23 @@ variable "AKS_CLUSTER_NAME" {
   default     = "aks-cluster" # Set to empty string if you don't want to provision an AKS cluster
 }
 
+variable "AKS_NODE_COUNT" {
+  description = "Number of nodes in the default AKS node pool."
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.AKS_NODE_COUNT >= 1
+    error_message = "AKS_NODE_COUNT must be at least 1."
+  }
+}
+
+variable "AKS_NODE_VM_SIZE" {
+  description = "VM size for the default AKS node pool. Choose a size with enough data-disk attachments for persistent workloads."
+  type        = string
+  default     = "Standard_D16s_v3"
+}
+
 variable "SETUP_LOCAL_HOST" {
   description = "Flag to initialize the host machine with juju and other tools"
   type        = bool
@@ -67,4 +84,10 @@ variable "SETUP_LOCAL_HOST" {
     condition     = var.PROVISION_BASTION == false || var.SETUP_LOCAL_HOST == false
     error_message = "Initialize host can only be set to true if PROVISION_BASTION is false"
   }
+}
+
+variable "CONTROLLER_CONSTRAINTS" {
+  description = "Juju constraints used when provisioning the controller machine."
+  type        = string
+  default     = "cores=4 mem=8G"
 }
