@@ -82,7 +82,7 @@ variable "s3_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "2/stable")
     config      = map(string)
-    constraints = optional(string, "arch=amd64 cores=1 mem=2G")
+    constraints = optional(string, "arch=amd64")
     machines    = optional(set(string), [])
     revision    = optional(number, null)
   })
