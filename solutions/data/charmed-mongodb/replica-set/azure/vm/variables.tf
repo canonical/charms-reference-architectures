@@ -7,7 +7,7 @@ variable "mongodb_model" {
   default     = "mongodb"
 }
 
-variable "remote-state" {
+variable "remote_state" {
   description = "Configuration for the remote state"
   type = object({
     resource_group_name  = optional(string, "tfstate-rg")

@@ -1,7 +1,7 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-variable "remote-state" {
+variable "remote_state" {
   description = "Configuration for the remote state"
   type = object({
     resource_group_name  = optional(string, "tfstate-rg")

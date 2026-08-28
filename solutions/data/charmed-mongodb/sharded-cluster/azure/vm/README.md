@@ -69,7 +69,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 
 | Name                                    | Description                                                                                                                                                                                       | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default                                                                          | Required   |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | :--------: |
-| `remote-state`                          | Azure Storage configuration for the infrastructure remote state                                                                                                                                   | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | n/a                                                                              | yes        |
+| `remote_state`                          | Azure Storage configuration for the infrastructure remote state                                                                                                                                   | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | n/a                                                                              | yes        |
 | `models`                                | Centralized model names for config-server and shards                                                                                                                                             | <pre>object({<br/>  config_server = optional(string, "mongodb-config")<br/>  shards        = optional(list(string), ["mongodb-shard-one", "mongodb-shard-two"])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `{}`                                                                             | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`                                                                             | no         |
 | `config_server`                         | MongoDB config-server application configuration                                                                                                                                                   | <pre>object({<br/>  app_name           = optional(string, "config-server")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "config-server" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                             | `{}`                                                                             | no         |
@@ -156,14 +156,42 @@ integrations across the Azure VM and Kubernetes models.
 
 ![Charmed MongoDB sharded cluster deployment](docs/sharded-cluster-azure-vm.excalidraw.svg)
 
+Authenticate with Azure before initializing or applying the Terraform module:
+
+```bash
+az login
+```
+
 Initialize Terraform:
 
 ```bash
 terraform init
 ```
 
-Configure the Azure Storage backend containing the output of the repository's
-`clouds/azure` module, then deploy the solution:
+Configure your Azure infrastructure reference using the remote state from your clouds/azure deployment:
+
+Define `TF_VAR_remote_state` using the appropriate values. See
+[`variables.tf`](variables.tf) for the default values.
+
+```bash
+export TF_VAR_remote_state='{
+  "storage_account_name": "YOUR_STORAGE_ACCOUNT_NAME",
+  "resource_group_name": "YOUR_RESOURCE_GROUP_NAME",
+  "container_name": "tfstate",
+  "key": "infra.terraform.tfstate"
+}'
+```
+
+Terraform automatically loads exported variables prefixed with `TF_VAR_`, so
+the value does not need to be passed separately with `-var`.
+
+Initialize Terraform:
+
+```bash
+terraform init
+```
+
+Deploy:
 
 ```bash
 terraform plan -out terraform.out
