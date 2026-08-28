@@ -247,6 +247,16 @@ module "mongodb_sharded_cluster" {
   data_integrator = merge(var.data_integrator, {
     model_uuid = juju_model.config_server.uuid
   })
+  backups_integrator = var.s3_integrator == null ? null : {
+    storage_type = "s3"
+    config       = var.s3_integrator.config
+    channel      = var.s3_integrator.channel
+    base         = var.s3_integrator.base
+    revision     = var.s3_integrator.revision
+    constraints  = var.s3_integrator.constraints
+    machines     = var.s3_integrator.machines
+    model_uuid   = juju_model.config_server.uuid
+  }
   client_certificates_integration = {
     name       = module.self_signed_certificates.app_name
     endpoint   = "certificates"
@@ -292,6 +302,8 @@ module "mongodb_sharded_cluster" {
     url  = var.vault_kv_integration.url
   }
 
+  s3_access_key          = var.s3_access_key
+  s3_secret_key          = var.s3_secret_key
   tls_client_private_key = var.tls_client_private_key
   tls_peer_private_key   = var.tls_peer_private_key
   logging_config         = var.logging_config

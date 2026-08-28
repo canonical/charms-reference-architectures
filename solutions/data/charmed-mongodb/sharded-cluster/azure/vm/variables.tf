@@ -51,7 +51,7 @@ variable "config_server" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "config-server" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 cores=2 mem=8G")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -92,7 +92,7 @@ variable "shards" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "shard" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 cores=2 mem=8G")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -130,7 +130,7 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 cores=1 mem=2G")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -143,6 +143,24 @@ variable "data_integrator" {
   default = {}
 }
 
+variable "s3_integrator" {
+  description = "Optional S3-compatible backup integrator configuration."
+  type = object({
+    base        = optional(string, "ubuntu@24.04")
+    channel     = optional(string, "2/stable")
+    config      = map(string)
+    constraints = optional(string, "arch=amd64 cores=1 mem=2G")
+    machines    = optional(set(string), [])
+    revision    = optional(number, null)
+  })
+  default = null
+
+  validation {
+    condition     = var.s3_integrator == null || length(var.s3_integrator.machines) <= 1
+    error_message = "The backup integrator can be placed on at most one machine."
+  }
+}
+
 variable "etcd" {
   description = "Charmed etcd configuration. It is deployed in a hardcoded 'mongodb-etcd' model using the etcd charm module."
   type = object({
@@ -150,7 +168,7 @@ variable "etcd" {
     channel           = optional(string, "3.6/stable")
     revision          = optional(number, null)
     base              = optional(string, "ubuntu@24.04")
-    constraints       = optional(string, "arch=amd64")
+    constraints       = optional(string, "arch=amd64 cores=2 mem=4G")
     config            = optional(map(string), {})
     storage           = optional(map(string), {})
     units             = optional(number, 3)
@@ -168,7 +186,7 @@ variable "self_signed_certificates" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "1/stable")
     config      = optional(map(string), { ca-common-name = "MongoDB CA" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 cores=1 mem=2G")
     revision    = optional(number, null)
     units       = optional(number, 1)
   })
@@ -230,6 +248,20 @@ variable "vault_kv_integration" {
 
 
 # Configuration variables
+variable "s3_access_key" {
+  description = "Optional access key for S3-compatible object storage."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "s3_secret_key" {
+  description = "Optional secret key for S3-compatible object storage."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
 variable "tls_client_private_key" {
   description = "Optional PEM private key for config-server client TLS."
   type        = string
