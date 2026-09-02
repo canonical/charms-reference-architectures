@@ -28,7 +28,7 @@ resource "azurerm_network_security_group" "main_nsg" {
     direction                    = "Inbound"
     access                       = "Allow"
     protocol                     = "Tcp"
-    source_address_prefixes      = var.SOURCE_ADDRESSES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESSES, azurerm_virtual_network.main_vnet.address_space)
+    source_adess_prefixes      = var.SOURCE_ADDRESSES == null ? ["0.0.0.0/0"] : concat(var.SOURCE_ADDRESSES, azurerm_virtual_network.main_vnet.address_space)
     destination_address_prefixes = azurerm_virtual_network.main_vnet.address_space
     source_port_range            = "*"
     destination_port_range       = "17070"
