@@ -43,11 +43,11 @@ resource "azurerm_role_definition" "bastion_role" {
 # Assign the role to the managed identity
 resource "azurerm_role_assignment" "bastion_role_assignment" {
   # if PROVISION_BASTION is true then create the bastion host
-  count                = var.PROVISION_BASTION ? 1 : 0
-  scope                = azurerm_role_definition.bastion_role[count.index].scope
-  role_definition_name = azurerm_role_definition.bastion_role[count.index].name
-  principal_id         = azurerm_user_assigned_identity.bastion_identity[count.index].principal_id
-  principal_type       = "ServicePrincipal"
+  count              = var.PROVISION_BASTION ? 1 : 0
+  scope              = azurerm_role_definition.bastion_role[count.index].scope
+  role_definition_id = azurerm_role_definition.bastion_role[count.index].role_definition_resource_id
+  principal_id       = azurerm_user_assigned_identity.bastion_identity[count.index].principal_id
+  principal_type     = "ServicePrincipal"
 
   depends_on = [
     azurerm_role_definition.bastion_role,
@@ -141,6 +141,7 @@ resource "null_resource" "set_up_bastion_script" {
       kube_config            = var.AKS_CLUSTER_NAME != "" ? azurerm_kubernetes_cluster.aks[0].kube_config_raw : "",
       vnet_name              = azurerm_virtual_network.main_vnet.name,
       controller_subnet_name = azurerm_subnet.controller_subnet.name,
+      controller_constraints = var.CONTROLLER_CONSTRAINTS,
       aks_cluster_name       = var.AKS_CLUSTER_NAME != "" ? var.AKS_CLUSTER_NAME : "",
       app_client_id          = var.SETUP_LOCAL_HOST ? azuread_application.juju_app[0].client_id : "",
       app_password           = var.SETUP_LOCAL_HOST ? azuread_application_password.juju_app_password[0].value : "",
