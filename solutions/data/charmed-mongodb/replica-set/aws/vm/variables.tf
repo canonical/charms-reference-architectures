@@ -19,15 +19,20 @@ variable "vpc_id" {
 }
 
 variable "network_spaces" {
-  description = "CIDR of the existing AWS subnet assigned to the MongoDB peer Juju space."
+  description = "CIDRs of the existing AWS subnets assigned to the peer and client Juju spaces."
   type = object({
-    peers_cidr = optional(string, "10.0.2.0/24")
+    peers_cidr   = optional(string, "10.0.2.0/24")
+    clients_cidr = optional(string, "10.0.3.0/24")
   })
   default = {}
 
   validation {
-    condition     = can(cidrnetmask(var.network_spaces.peers_cidr))
-    error_message = "The peer CIDR must be a valid IPv4 network address."
+    condition = (
+      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
+      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
+      can(cidrnetmask(var.network_spaces.clients_cidr))
+    )
+    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
   }
 }
 
@@ -82,11 +87,16 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=clients")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+    })), [
+      {
+        endpoint = "mongodb"
+        space    = "clients"
+      },
+    ])
     machines           = optional(set(string), null)
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
