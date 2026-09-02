@@ -18,6 +18,23 @@ variable "vpc_id" {
   }
 }
 
+variable "network_spaces" {
+  description = "CIDRs of the existing AWS subnets assigned to the MongoDB peer and client Juju spaces."
+  type = object({
+    peers_cidr   = optional(string, "10.0.2.0/24")
+    clients_cidr = optional(string, "10.0.3.0/24")
+  })
+  default = {}
+
+  validation {
+    condition = (
+      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
+      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
+      can(cidrnetmask(var.network_spaces.clients_cidr))
+    )
+    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
+  }
+}
 
 variable "cos" {
   description = "Configuration for the Charmed Observability Stack. Storage defaults are intended for testing and must be sized before production deployment."
@@ -32,6 +49,7 @@ variable "cos" {
   })
   default = {}
 }
+
 variable "mongodb" {
   description = "MongoDB replica-set application configuration."
   type = object({
@@ -39,11 +57,20 @@ variable "mongodb" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=clients,peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+    })), [
+      {
+        endpoint = "database-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "database"
+        space    = "clients"
+      },
+    ])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
