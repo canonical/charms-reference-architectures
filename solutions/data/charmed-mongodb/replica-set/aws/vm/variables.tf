@@ -61,10 +61,6 @@ variable "mongodb" {
         endpoint = "database-peers"
         space    = "peers"
       },
-      {
-        endpoint = "database"
-        space    = "peers"
-      },
     ])
     expose = optional(list(object({
       cidrs     = optional(string)

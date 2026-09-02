@@ -59,7 +59,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `vpc_id`                                | AWS VPC ID for the MongoDB model. Required with this repository's `clouds/aws` module; otherwise optional                                                                                          | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `null`          | no         |
 | `network_spaces`                        | CIDR of the existing AWS subnet assigned to the MongoDB peer Juju space                                                                                                                           | <pre>object({<br/>  peers_cidr = optional(string, "10.0.2.0/24")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `{}`            | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`            | no         |
-| `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "database-peers", space = "peers" }, { endpoint = "database", space = "peers" }])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
+| `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "database-peers", space = "peers" }])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
 | `data_integrator`                       | Data-integrator application configuration                                                                                                                                                         | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`            | no         |
 | `s3_integrator`                         | Optional S3 backup-integrator configuration                                                                                                                                                       | <pre>object({<br/>  config      = map(string)<br/>  channel     = optional(string, "2/stable")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  revision    = optional(number, null)<br/>  constraints = optional(string, "arch=amd64")<br/>  machines    = optional(set(string), [])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `null`          | no         |
 | `s3_access_key`                         | Optional AWS S3 access key                                                                                                                                                                        | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
@@ -209,8 +209,8 @@ module, the VPC contains two private deployment subnets:
 | `deployments_peers_subnet`         | `10.0.2.0/24` | MongoDB replica peers  |
 | `deployments_clients_subnet`       | `10.0.3.0/24` | MongoDB client traffic |
 
-Juju EC2 machines support only one network interface. This deployment uses the
-`deployments_peers_subnet` for both MongoDB peer and client traffic.
+Juju EC2 machines support only one network interface. This deployment places
+MongoDB on `deployments_peers_subnet` and binds its peer endpoint to it.
 
 The MongoDB module depends on the subnet assignment, ensuring that the space
 is configured before Juju deploys MongoDB. After applying, inspect the result
@@ -222,7 +222,7 @@ juju spaces -m mongodb
 ```
 
 By default, the module places each MongoDB VM in the `peers` space and binds
-both peer and client traffic to it:
+the peer endpoint to it:
 
 ```hcl
 mongodb = {
@@ -233,18 +233,13 @@ mongodb = {
       endpoint = "database-peers"
       space    = "peers"
     },
-    {
-      endpoint = "database"
-      space    = "peers"
-    },
   ]
 }
 ```
 
-The `spaces` constraint places the machine on the peer subnet. The endpoint
-bindings ensure both relation endpoints resolve through its single network
-interface. When overriding `mongodb.constraints`, retain `spaces=peers` along
-with any additional placement requirements.
+The `spaces` constraint places the machine on the peer subnet. When overriding
+`mongodb.constraints`, retain `spaces=peers` along with any additional
+placement requirements.
 
 The Juju space name `peers` is fixed by this reference architecture. Override
 the existing AWS peer subnet CIDR through `network_spaces`:
@@ -263,13 +258,11 @@ terraform plan \
 terraform apply terraform.out
 ```
 
-Verify that both endpoints resolve to the peer subnet:
+Verify that the peer endpoint resolves to the peer subnet:
 
 ```bash
 juju exec -m mongodb --unit mongodb/0 -- \
   network-get database-peers --bind-address
-juju exec -m mongodb --unit mongodb/0 -- \
-  network-get database --bind-address
 ```
 
-Both addresses should be in `10.0.2.0/24`.
+The address should be in `10.0.2.0/24`.
