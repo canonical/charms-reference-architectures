@@ -2,6 +2,15 @@
 
 This Terraform module facilitates the provisioning of essential Azure infrastructure components tailored for Juju deployments. It leverages the official [AzureRM provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs) to create and manage the necessary cloud resources.
 
+## How it works
+
+The deployment is split into two Terraform root modules with separate lifecycles:
+
+1. The `clouds/azure/state` module creates a resource group, an Azure Storage Account, and a private blob container for the environment's Terraform state. Because these resources do not exist yet, this module uses local state to bootstrap them.
+2. The `clouds/azure` module deploys the resource group, networking, optional bastion host, optional AKS cluster, and Juju setup. It uses the blob container created by the state module as its remote backend. Configure the `azurerm` backend in `clouds/azure/versions.tf` with the state module's outputs before running `terraform init` for this module.
+
+The storage account and blob container must remain available for the entire lifetime of the environment. When removing a deployment, destroy the resources managed by the main module first, then destroy the state module's resources.
+
 ## Features
 
   * **Resource Group Management**: Creates a dedicated Azure Resource Group to logically organize all provisioned resources.
@@ -32,7 +41,10 @@ The module exposes the following configurable input variables.
 | `SSH_PRIVATE_KEY`       | `string`       | Path to the SSH private key used to access the bastion.                                                                                                       | **Yes if `PROVISION_BASTION` is `true`** | `null`          |
 | `SOURCE_ADDRESSES`      | `list(string)` | A list of CIDR blocks (e.g., `["1.2.3.4/32", "5.6.7.0/24"]`) or service tags (e.g., `["VirtualNetwork", "AzureLoadBalancer"]`) allowed for inbound NSG rules. | No                                       | `null`          |
 | `AKS_CLUSTER_NAME`      | `string`       | The name of the Azure Kubernetes Service (AKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an AKS cluster.               | No                                       | `"aks-cluster"` |
+| `AKS_NODE_COUNT`        | `number`       | Number of nodes in the default AKS node pool.                                                                                                                  | No                                       | `3`             |
+| `AKS_NODE_VM_SIZE`      | `string`       | VM size for the default AKS node pool. The default supports persistent workloads requiring a high Azure Disk attachment count.                                | No                                       | `"Standard_D16s_v3"` |
 | `SETUP_LOCAL_HOST`      | `bool`         | Whether to set up the host machine with Juju and deploy the Juju controller. This typically involves running a remote-exec provisioner.                       | No                                       | `false`         |
+| `CONTROLLER_CONSTRAINTS` | `string`      | Juju constraints used to provision the controller machine.                                                                                                    | No                                       | `"cores=4 mem=8G"` |
 
 ---
 
@@ -60,7 +72,6 @@ You can use a separate Terraform module (`clouds/azure/state`) to provision the 
 ```shell
 pushd clouds/azure/state
 
-# TODO for users: change the value set in the `storage_account_name` key of the backend resource to a bucket name of your choice
 terraform init 
 
 terraform plan -out terraform.out \
@@ -70,7 +81,19 @@ terraform apply terraform.out
 
 popd
 ```
-2. Once that's done, copy the `storage_account_name` output variable 
+
+To customize resource group and and the the storage account name prefix, set `RESOURCE_GROUP_NAME` and `STORAGE_ACCOUNT_NAME` when planning the state module.
+
+```shell
+-var="RESOURCE_GROUP_NAME=new-resourge-group"
+-var="STORAGE_ACCOUNT_NAME=tfstateuniquetest"
+```
+
+The module always appends a random suffix to ensure that the storage account name is unique. If this variable is omitted, the prefix defaults to `tfstate`.
+
+Save the output values, you will use them in the next step.
+
+2. Once that's done, copy the `storage_account_name` output variable.
 3. Update the `backend` section within your `clouds/azure/versions.tf` file to reflect your Azure Storage Account details you get from the previous step.
 
 Example `clouds/azure/versions.tf` snippet for backend configuration:
@@ -85,6 +108,7 @@ Example `clouds/azure/versions.tf` snippet for backend configuration:
     backend "azurerm" {
         ...
         storage_account_name = "tfstate8lbos2zx" # TODO replace this with a valid storage account name
+        resource_group_name  = "tfstate-rg"      # TODO replace if customized in the previous step
         ...
       }
   }
@@ -100,7 +124,7 @@ pushd clouds/azure
 terraform init 
 
 terraform plan -out terraform.out \
-    -var="RESOURCE_GROUP_NAME=myResourceGroup"    \  # optional, defaults to "main-rg"
+    -var="RESOURCE_GROUP_NAME=myResourceGroup"    \  # optional, defaults to "main-rg". Use a different name from the state resource group
     -var="REGION=eastus"                          \  # optional, defaults to "eastus
     -var="AZURE_SUBSCRIPTION_ID=mySubscriptionId" \  # required, your Azure subscription ID
     -var="PROVISION_BASTION=true"                 \  # optional, defaults to true
@@ -108,7 +132,10 @@ terraform plan -out terraform.out \
     -var="SSH_PRIVATE_KEY=~/.ssh/id_rsa"          \  # required ONLY IF PROVISION_BASTION is true, your SSH private key to ssh into the Bastion
     -var='SOURCE_ADDRESSES=["123.45.67.12/32"]'   \  # optional, put your host's (Public) IP address to be allowed to ssh into the Bastion, defaults to null/[0.0.0.0/0]
     -var="AKS_CLUSTER_NAME=myAKSCluster"          \  # optional, defaults to "aks-cluster", set to "" if you do not want to provision an AKS cluster
+    -var="AKS_NODE_COUNT=3"                       \  # optional, defaults to 3
+    -var="AKS_NODE_VM_SIZE=Standard_D16s_v3"      \  # optional, defaults to Standard_D16s_v3. Use Standard_D4s_v3 for smaller workloads
     -var="SETUP_LOCAL_HOST=false"                 \  # optional, defaults to false, set to true if you don't want a bastion and you want to set up the local host with Juju and deploy the controller
+    -var="CONTROLLER_CONSTRAINTS=cores=4 mem=8G"     # optional, defaults to "cores=4 mem=8G"
 
 terraform apply terraform.out
 
@@ -137,7 +164,13 @@ module "juju_azure_infra" {
 }
 ```
 
+AKS limits the number of Azure Disks that can be attached to each node based on
+the selected VM size. Storage-heavy deployments such as a MongoDB sharded
+cluster should use a VM size with sufficient data-disk attachment capacity.
+Increasing `AKS_NODE_COUNT` adds attachment capacity horizontally; increasing
+`AKS_NODE_VM_SIZE` can increase the per-node attachment limit. Confirm the
+effective limit after provisioning with `kubectl get csinode`.
+
 ## License
 
 This module is licensed under the [Apache License](../../LICENSE).
-

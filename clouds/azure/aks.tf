@@ -15,8 +15,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   default_node_pool {
     name           = "default"
-    node_count     = 3
-    vm_size        = "Standard_D4s_v3" # Comparable to t3.xlarge (4 vCPU, 16GB RAM)
+    node_count     = var.AKS_NODE_COUNT
+    vm_size        = var.AKS_NODE_VM_SIZE
     vnet_subnet_id = azurerm_subnet.deployments_subnet.id
     zones          = [2, 3] # Spread nodes across Availability Zones
   }
