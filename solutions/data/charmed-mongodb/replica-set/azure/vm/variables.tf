@@ -7,8 +7,8 @@ variable "mongodb_model" {
   default     = "mongodb"
 }
 
-variable "remote-state" {
-  description = "Configuration for the remote state"
+variable "remote_state" {
+  description = "Configuration for the remote state. Can be set via the TF_VAR_remote_state environment variable."
   type = object({
     resource_group_name  = optional(string, "tfstate-rg")
     storage_account_name = string
@@ -56,7 +56,7 @@ variable "mongodb" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
+    constraints = optional(string, "arch=amd64 cores=2 mem=8G spaces=peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)

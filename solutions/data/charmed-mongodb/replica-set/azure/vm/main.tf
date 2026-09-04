@@ -4,7 +4,7 @@
 # Data source to reference Azure infrastructure created by clouds/azure module
 data "terraform_remote_state" "infra_state" {
   backend = "azurerm"
-  config  = var.remote-state
+  config  = var.remote_state
 }
 
 # Juju credentials are provided through the provider environment variables.

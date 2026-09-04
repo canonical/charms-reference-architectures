@@ -59,7 +59,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | Name                                    | Description                                                                                                                                                                                       | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default         | Required   |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | :--------: |
 | `mongodb_model`                         | Name of the azure VM model                                                                                                                                                                          | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `"mongodb"`     | no         |
-| `remote-state`                          | Configuration for remote state to reference Azure infrastructure created by the clouds/azure module                                                                                                 | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `null`          | no         |
+| `remote_state`                          | Configuration for remote state to reference Azure infrastructure created by the clouds/azure module. Can be set via the `TF_VAR_remote_state` environment variable                                | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `null`          | no         |
 | `network_spaces`                        | CIDRs of the existing Azure subnets assigned to the peer and client Juju spaces                                                                                                                   | <pre>object({<br/>  peers_cidr   = optional(string, "10.3.0.0/24")<br/>  clients_cidr = optional(string, "10.4.0.0/24")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `{}`            | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`            | no         |
 | `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "database-peers", space = "peers" }])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
@@ -190,7 +190,9 @@ terraform init
 Configure your Azure infrastructure reference using the remote state from your clouds/azure deployment:
 
 Define `TF_VAR_remote_state` using the appropriate values. See
-[`variables.tf`](variables.tf) for the default values.
+[`variables.tf`](variables.tf) for the default values. Terraform picks up
+this environment variable automatically for the `remote_state` input, so it
+does not need to be passed with `-var`.
 
 ```bash
 export TF_VAR_remote_state='{
@@ -208,7 +210,6 @@ Deploy the solution in two steps:
 ```bash
 terraform plan \
   -target=juju_model.mongodb \
-  -var="remote-state=${TF_VAR_remote_state}" \
   -out mongodb-model.out
 terraform apply mongodb-model.out
 ```
@@ -282,11 +283,10 @@ network_spaces = {
 }
 ```
 
-Then plan and apply the rest of the solution:
+**Step 2: Deploy the complete solution**
 
 ```bash
 terraform plan \
-  -var="remote-state=${TF_VAR_remote_state}" \
   -out mongodb-complete.out
 terraform apply mongodb-complete.out
 ```
@@ -308,12 +308,3 @@ juju exec -m mongodb --unit data-integrator/0 -- \
 ```
 
 The address should be in `10.4.0.0/24`.
-
-**Step 2: Deploy the complete solution**
-
-```bash
-terraform plan \
-  -var="remote-state=${TF_VAR_remote_state}" \
-  -out mongodb-complete.out
-terraform apply mongodb-complete.out
-```
