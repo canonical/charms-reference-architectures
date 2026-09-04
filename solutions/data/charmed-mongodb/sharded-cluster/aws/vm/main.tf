@@ -47,6 +47,55 @@ resource "juju_model" "etcd" {
   }
 }
 
+# Spaces are model-scoped, so associate the shared AWS subnets with the
+# config-server model and with every shard model.
+resource "juju_space" "config_server_peers" {
+  model_uuid = juju_model.config_server.uuid
+  name       = "peers"
+}
+
+resource "juju_subnet" "config_server_peers" {
+  model_uuid = juju_model.config_server.uuid
+  cidr       = var.network_spaces.peers_cidr
+  space_name = juju_space.config_server_peers.name
+}
+
+resource "juju_space" "config_server_clients" {
+  model_uuid = juju_model.config_server.uuid
+  name       = "clients"
+}
+
+resource "juju_subnet" "config_server_clients" {
+  model_uuid = juju_model.config_server.uuid
+  cidr       = var.network_spaces.clients_cidr
+  space_name = juju_space.config_server_clients.name
+}
+
+resource "juju_space" "shard_peers" {
+  for_each   = juju_model.shards
+  model_uuid = each.value.uuid
+  name       = "peers"
+}
+
+resource "juju_subnet" "shard_peers" {
+  for_each   = juju_model.shards
+  model_uuid = each.value.uuid
+  cidr       = var.network_spaces.peers_cidr
+  space_name = juju_space.shard_peers[each.key].name
+}
+
+resource "juju_space" "shard_clients" {
+  for_each   = juju_model.shards
+  model_uuid = each.value.uuid
+  name       = "clients"
+}
+
+resource "juju_subnet" "shard_clients" {
+  for_each   = juju_model.shards
+  model_uuid = each.value.uuid
+  cidr       = var.network_spaces.clients_cidr
+  space_name = juju_space.shard_clients[each.key].name
+}
 
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
@@ -304,6 +353,10 @@ module "mongodb_sharded_cluster" {
 
   depends_on = [
     module.self_signed_certificates,
-    module.charmed_etcd
+    module.charmed_etcd,
+    juju_subnet.config_server_peers,
+    juju_subnet.config_server_clients,
+    juju_subnet.shard_peers,
+    juju_subnet.shard_clients,
   ]
 }
