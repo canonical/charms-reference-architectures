@@ -7,14 +7,32 @@ variable "mongodb_model" {
   default     = "mongodb"
 }
 
-variable "remote-state" {
-  description = "Configuration for the remote state"
+variable "remote_state" {
+  description = "Configuration for the remote state. Can be set via the TF_VAR_remote_state environment variable."
   type = object({
     resource_group_name  = optional(string, "tfstate-rg")
     storage_account_name = string
     container_name       = optional(string, "tfstate")
     key                  = optional(string, "infra.terraform.tfstate")
   })
+}
+
+variable "network_spaces" {
+  description = "CIDRs of the existing Azure subnets assigned to the peer and client Juju spaces."
+  type = object({
+    peers_cidr   = optional(string, "10.3.0.0/24")
+    clients_cidr = optional(string, "10.4.0.0/24")
+  })
+  default = {}
+
+  validation {
+    condition = (
+      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
+      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
+      can(cidrnetmask(var.network_spaces.clients_cidr))
+    )
+    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
+  }
 }
 
 variable "cos" {
@@ -38,11 +56,16 @@ variable "mongodb" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 cores=2 mem=8G spaces=peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+    })), [
+      {
+        endpoint = "database-peers"
+        space    = "peers"
+      },
+    ])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
@@ -63,11 +86,16 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=clients")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+    })), [
+      {
+        endpoint = "mongodb"
+        space    = "clients"
+      },
+    ])
     machines           = optional(set(string), null)
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})

@@ -26,6 +26,23 @@ resource "azurerm_subnet" "deployments_subnet" {
   address_prefixes     = ["10.2.0.0/16"]
 }
 
+# Dedicated subnets used to bind Juju spaces (e.g. "peers"/"clients") for
+# solutions that split VM deployment traffic. Kept separate from deployments_subnet,
+# which remains the general-purpose subnet (e.g. for AKS).
+resource "azurerm_subnet" "deployments_peers_subnet" {
+  name                 = "deployments-peers-subnet"
+  resource_group_name  = azurerm_resource_group.main_rg.name
+  virtual_network_name = azurerm_virtual_network.main_vnet.name
+  address_prefixes     = ["10.3.0.0/24"]
+}
+
+resource "azurerm_subnet" "deployments_clients_subnet" {
+  name                 = "deployments-clients-subnet"
+  resource_group_name  = azurerm_resource_group.main_rg.name
+  virtual_network_name = azurerm_virtual_network.main_vnet.name
+  address_prefixes     = ["10.4.0.0/24"]
+}
+
 
 # --- NAT Gateway ---
 # I. Controller NAT Gateway Setup
@@ -88,6 +105,23 @@ resource "azurerm_nat_gateway_public_ip_association" "deployments_nat_gateway_ip
 # 4. Associate the NAT Gateway with the deployments subnet
 resource "azurerm_subnet_nat_gateway_association" "deployments_subnet_nat_assoc" {
   subnet_id      = azurerm_subnet.deployments_subnet.id
+  nat_gateway_id = azurerm_nat_gateway.deployments_nat_gateway.id
+  depends_on = [
+    azurerm_nat_gateway_public_ip_association.deployments_nat_gateway_ip_assoc,
+  ]
+}
+
+# 5. Associate the same NAT Gateway with the dedicated peers/clients subnets
+resource "azurerm_subnet_nat_gateway_association" "deployments_peers_subnet_nat_assoc" {
+  subnet_id      = azurerm_subnet.deployments_peers_subnet.id
+  nat_gateway_id = azurerm_nat_gateway.deployments_nat_gateway.id
+  depends_on = [
+    azurerm_nat_gateway_public_ip_association.deployments_nat_gateway_ip_assoc,
+  ]
+}
+
+resource "azurerm_subnet_nat_gateway_association" "deployments_clients_subnet_nat_assoc" {
+  subnet_id      = azurerm_subnet.deployments_clients_subnet.id
   nat_gateway_id = azurerm_nat_gateway.deployments_nat_gateway.id
   depends_on = [
     azurerm_nat_gateway_public_ip_association.deployments_nat_gateway_ip_assoc,

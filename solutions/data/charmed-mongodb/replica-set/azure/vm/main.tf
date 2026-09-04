@@ -4,7 +4,7 @@
 # Data source to reference Azure infrastructure created by clouds/azure module
 data "terraform_remote_state" "infra_state" {
   backend = "azurerm"
-  config  = var.remote-state
+  config  = var.remote_state
 }
 
 # Juju credentials are provided through the provider environment variables.
@@ -19,6 +19,28 @@ resource "juju_model" "mongodb" {
     "resource-group-name" = data.terraform_remote_state.infra_state.outputs.infrastructure.resource_group_name
     "network"             = data.terraform_remote_state.infra_state.outputs.infrastructure.vnet_name
   }
+}
+
+resource "juju_space" "peers" {
+  model_uuid = juju_model.mongodb.uuid
+  name       = "peers"
+}
+
+resource "juju_subnet" "peers" {
+  model_uuid = juju_model.mongodb.uuid
+  cidr       = var.network_spaces.peers_cidr
+  space_name = juju_space.peers.name
+}
+
+resource "juju_space" "clients" {
+  model_uuid = juju_model.mongodb.uuid
+  name       = "clients"
+}
+
+resource "juju_subnet" "clients" {
+  model_uuid = juju_model.mongodb.uuid
+  cidr       = var.network_spaces.clients_cidr
+  space_name = juju_space.clients.name
 }
 
 
@@ -122,7 +144,8 @@ module "mongodb_replica_set" {
   }
 
   depends_on = [
-    juju_model.mongodb,
+    juju_subnet.peers,
+    juju_subnet.clients,
   ]
 }
 

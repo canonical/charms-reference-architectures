@@ -3,11 +3,13 @@
 
 output "infrastructure" {
   value = {
-    resource_group_name     = azurerm_resource_group.main_rg.name
-    vnet_name               = azurerm_virtual_network.main_vnet.name
-    controller_subnet_name  = azurerm_subnet.controller_subnet.name
-    deployments_subnet_name = azurerm_subnet.deployments_subnet.name
-    bastion_public_ip       = var.PROVISION_BASTION ? azurerm_public_ip.bastion_public_ip[0].ip_address : null
+    resource_group_name             = azurerm_resource_group.main_rg.name
+    vnet_name                       = azurerm_virtual_network.main_vnet.name
+    controller_subnet_name          = azurerm_subnet.controller_subnet.name
+    deployments_subnet_name         = azurerm_subnet.deployments_subnet.name
+    deployments_peers_subnet_name   = azurerm_subnet.deployments_peers_subnet.name
+    deployments_clients_subnet_name = azurerm_subnet.deployments_clients_subnet.name
+    bastion_public_ip               = var.PROVISION_BASTION ? azurerm_public_ip.bastion_public_ip[0].ip_address : null
   }
 }
 
