@@ -21,6 +21,28 @@ resource "juju_model" "mongodb" {
   }
 }
 
+resource "juju_space" "peers" {
+  model_uuid = juju_model.mongodb.uuid
+  name       = "peers"
+}
+
+resource "juju_subnet" "peers" {
+  model_uuid = juju_model.mongodb.uuid
+  cidr       = var.network_spaces.peers_cidr
+  space_name = juju_space.peers.name
+}
+
+resource "juju_space" "clients" {
+  model_uuid = juju_model.mongodb.uuid
+  name       = "clients"
+}
+
+resource "juju_subnet" "clients" {
+  model_uuid = juju_model.mongodb.uuid
+  cidr       = var.network_spaces.clients_cidr
+  space_name = juju_space.clients.name
+}
+
 
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
@@ -122,7 +144,8 @@ module "mongodb_replica_set" {
   }
 
   depends_on = [
-    juju_model.mongodb,
+    juju_subnet.peers,
+    juju_subnet.clients,
   ]
 }
 

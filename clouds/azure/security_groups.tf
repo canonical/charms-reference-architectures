@@ -94,3 +94,13 @@ resource "azurerm_subnet_network_security_group_association" "deployments_subnet
   subnet_id                 = azurerm_subnet.deployments_subnet.id
   network_security_group_id = azurerm_network_security_group.main_nsg.id
 }
+
+resource "azurerm_subnet_network_security_group_association" "deployments_peers_subnet_nsg_assoc" {
+  subnet_id                 = azurerm_subnet.deployments_peers_subnet.id
+  network_security_group_id = azurerm_network_security_group.main_nsg.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "deployments_clients_subnet_nsg_assoc" {
+  subnet_id                 = azurerm_subnet.deployments_clients_subnet.id
+  network_security_group_id = azurerm_network_security_group.main_nsg.id
+}
