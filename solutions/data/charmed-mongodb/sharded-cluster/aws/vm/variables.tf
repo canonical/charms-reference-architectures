@@ -96,7 +96,13 @@ variable "config_server" {
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-    })), [])
+      })), [
+      {
+        cidrs     = "10.0.2.0/24"
+        endpoints = "config-server"
+        spaces    = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -146,7 +152,13 @@ variable "shards" {
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-    })), [])
+      })), [
+      {
+        cidrs     = "10.0.2.0/24"
+        endpoints = "sharding"
+        spaces    = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
