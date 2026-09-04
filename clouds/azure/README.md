@@ -14,7 +14,7 @@ The storage account and blob container must remain available for the entire life
 ## Features
 
   * **Resource Group Management**: Creates a dedicated Azure Resource Group to logically organize all provisioned resources.
-  * **Networking Configuration**: Sets up a Virtual Network (VNet) with distinct subnets for Juju controllers, deployments, and dedicated peer/client deployment subnets used to bind Juju spaces (e.g. for the Charmed MongoDB replica-set VM module), ensuring proper network isolation.
+  * **Networking Configuration**: Sets up a Virtual Network (VNet) with distinct subnets for Juju controllers, deployments, and dedicated peer/client deployment subnets used to bind Juju spaces, ensuring proper network isolation.
   * **Bastion Host Provisioning**: Optionally provisions a secure bastion host for administrative access to the Juju environment.
   * **Azure Kubernetes Service (AKS) Integration**: Allows for the optional deployment of an AKS cluster, suitable for Juju's Kubernetes integration.
   * **Security Group Rules**: Configures Network Security Group (NSG) rules to control inbound and outbound traffic.

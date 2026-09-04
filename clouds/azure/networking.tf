@@ -27,9 +27,8 @@ resource "azurerm_subnet" "deployments_subnet" {
 }
 
 # Dedicated subnets used to bind Juju spaces (e.g. "peers"/"clients") for
-# solutions that split VM deployment traffic, such as the Charmed MongoDB
-# replica-set VM module. Kept separate from deployments_subnet, which
-# remains the general-purpose subnet (e.g. for AKS).
+# solutions that split VM deployment traffic. Kept separate from deployments_subnet,
+# which remains the general-purpose subnet (e.g. for AKS).
 resource "azurerm_subnet" "deployments_peers_subnet" {
   name                 = "deployments-peers-subnet"
   resource_group_name  = azurerm_resource_group.main_rg.name

@@ -56,7 +56,7 @@ variable "mongodb" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
-    constraints = optional(string, "arch=amd64 cores=2 mem=8G spaces=peers,clients")
+    constraints = optional(string, "arch=amd64 cores=2 mem=8G spaces=peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -64,10 +64,6 @@ variable "mongodb" {
       {
         endpoint = "database-peers"
         space    = "peers"
-      },
-      {
-        endpoint = "database"
-        space    = "clients"
       },
     ])
     expose = optional(list(object({
