@@ -39,24 +39,6 @@ variable "vpc_id" {
   }
 }
 
-variable "network_spaces" {
-  description = "CIDRs of the existing AWS subnets assigned to the peer and client Juju spaces in the config-server and shard models."
-  type = object({
-    peers_cidr   = optional(string, "10.0.2.0/24")
-    clients_cidr = optional(string, "10.0.3.0/24")
-  })
-  default = {}
-
-  validation {
-    condition = (
-      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
-      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
-      can(cidrnetmask(var.network_spaces.clients_cidr))
-    )
-    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
-  }
-}
-
 variable "cos" {
   description = "Configuration for the Charmed Observability Stack. Storage defaults are intended for testing and must be sized before production deployment."
   type = object({
@@ -78,31 +60,16 @@ variable "config_server" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "config-server" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
+    constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-      })), [
-      {
-        endpoint = "database-peers"
-        space    = "peers"
-      },
-      {
-        endpoint = "config-server"
-        space    = "peers"
-      },
-    ])
+    })), [])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-      })), [
-      {
-        cidrs     = "10.0.2.0/24"
-        endpoints = "config-server"
-        spaces    = "peers"
-      },
-    ])
+    })), [])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -134,31 +101,16 @@ variable "shards" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "shard" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
+    constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-      })), [
-      {
-        endpoint = "database-peers"
-        space    = "peers"
-      },
-      {
-        endpoint = "sharding"
-        space    = "peers"
-      },
-    ])
+    })), [])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-      })), [
-      {
-        cidrs     = "10.0.2.0/24"
-        endpoints = "sharding"
-        spaces    = "peers"
-      },
-    ])
+    })), [])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -187,16 +139,11 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64 spaces=clients")
+    constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-      })), [
-      {
-        endpoint = "mongos"
-        space    = "clients"
-      },
-    ])
+    })), [])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
