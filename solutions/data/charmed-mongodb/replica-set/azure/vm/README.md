@@ -62,7 +62,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `remote_state`                          | Configuration for remote state to reference Azure infrastructure created by the clouds/azure module. Can be set via the `TF_VAR_remote_state` environment variable                                | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `null`          | no         |
 | `network_spaces`                        | CIDRs of the existing Azure subnets assigned to the peer and client Juju spaces                                                                                                                   | <pre>object({<br/>  peers_cidr   = optional(string, "10.3.0.0/24")<br/>  clients_cidr = optional(string, "10.4.0.0/24")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `{}`            | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`            | no         |
-| `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "database-peers", space = "peers" }])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
+| `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "database-peers", space = "peers" }, { endpoint = "database", space = "clients" }])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
 | `data_integrator`                       | Data-integrator application configuration                                                                                                                                                         | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64 spaces=clients")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "mongodb", space = "clients" }])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`            | no         |
 | `s3_integrator`                         | Optional S3-compatible backup-integrator configuration                                                                                                                                            | <pre>object({<br/>  config      = map(string)<br/>  channel     = optional(string, "2/stable")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  revision    = optional(number, null)<br/>  constraints = optional(string, "arch=amd64 cores=1 mem=2G")<br/>  machines    = optional(set(string), [])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `null`          | no         |
 | `s3_access_key`                         | Optional access key for S3-compatible object storage                                                                                                                                               | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
@@ -224,8 +224,9 @@ module, the VNet contains two dedicated deployment subnets:
 | `deployments-peers-subnet`     | `10.3.0.0/24`| MongoDB replica peers  |
 | `deployments-clients-subnet`   | `10.4.0.0/24`| MongoDB client traffic |
 
-This deployment places MongoDB on `deployments-peers-subnet` and Data
-Integrator on `deployments-clients-subnet`.
+This deployment binds MongoDB to both `deployments-peers-subnet` and
+`deployments-clients-subnet`, and binds Data Integrator to
+`deployments-clients-subnet` only.
 
 The application module depends on both subnet assignments, ensuring that the
 spaces are configured before Juju deploys the applications. After applying,
@@ -236,41 +237,39 @@ juju subnets -m mongodb
 juju spaces -m mongodb
 ```
 
-By default, the module places each MongoDB VM in the `peers` space and binds
-the peer endpoint to it:
+By default, each MongoDB VM is placed in both the `peers` and `clients`
+spaces, binding the peer endpoint to `peers` and the client-facing database
+endpoint to `clients`:
 
 ```hcl
 mongodb = {
-  constraints = "arch=amd64 spaces=peers"
+  constraints = "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3"
 
   endpoint_bindings = [
     {
       endpoint = "database-peers"
       space    = "peers"
     },
-  ]
-}
-```
-
-The `spaces` constraint places the machine on the peer subnet. When
-overriding `mongodb.constraints`, retain `spaces=peers` along with any
-additional placement requirements.
-
-Data Integrator is placed in the `clients` space and binds its `mongodb`
-endpoint to that space:
-
-```hcl
-data_integrator = {
-  constraints = "arch=amd64 spaces=clients"
-
-  endpoint_bindings = [
     {
-      endpoint = "mongodb"
+      endpoint = "database"
       space    = "clients"
     },
   ]
 }
 ```
+
+Binding a machine to two spaces requires an instance type with enough network
+interfaces to attach one NIC per Azure subnet. `Standard_D8_v3` provides 4
+NICs, which is enough to bind both the `peers` and `clients` spaces on the
+same VM. When selecting a different `instance-type`, confirm it supports at
+least as many NICs as the number of spaces the machine is bound to. See the
+[Azure VM sizes documentation](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes)
+for the maximum NIC count per size.
+
+The `spaces` constraint places the machine's NICs on the peer and client
+subnets. When overriding `mongodb.constraints`, retain `spaces=peers,clients`
+and a compatible `instance-type` along with any additional placement
+requirements.
 
 The Juju space names `peers` and `clients` are fixed by this reference
 architecture. Override the existing Azure subnet CIDRs through
@@ -299,6 +298,16 @@ juju exec -m mongodb --unit mongodb/0 -- \
 ```
 
 The address should be in `10.3.0.0/24`.
+
+Verify that MongoDB's client-facing database endpoint resolves to the client
+subnet:
+
+```bash
+juju exec -m mongodb --unit mongodb/0 -- \
+  network-get database --bind-address
+```
+
+The address should be in `10.4.0.0/24`.
 
 Verify that the Data Integrator endpoint resolves to the client subnet:
 
