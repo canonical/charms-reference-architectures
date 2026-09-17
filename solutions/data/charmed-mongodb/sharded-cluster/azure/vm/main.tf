@@ -41,6 +41,44 @@ resource "juju_model" "shards" {
   }
 }
 
+# Spaces are model-scoped, so configure them for the config server and every shard.
+locals {
+  mongodb_models = merge(
+    { config_server = juju_model.config_server.uuid },
+    { for i, model in juju_model.shards : "shard-${i}" => model.uuid }
+  )
+}
+
+resource "juju_space" "peers" {
+  for_each = local.mongodb_models
+
+  model_uuid = each.value
+  name       = "peers"
+}
+
+resource "juju_subnet" "peers" {
+  for_each = local.mongodb_models
+
+  model_uuid = each.value
+  cidr       = var.network_spaces.peers_cidr
+  space_name = juju_space.peers[each.key].name
+}
+
+resource "juju_space" "clients" {
+  for_each = { config_server = juju_model.config_server.uuid }
+
+  model_uuid = each.value
+  name       = "clients"
+}
+
+resource "juju_subnet" "clients" {
+  for_each = { config_server = juju_model.config_server.uuid }
+
+  model_uuid = each.value
+  cidr       = var.network_spaces.clients_cidr
+  space_name = juju_space.clients[each.key].name
+}
+
 # Etcd model (hardcoded name)
 resource "juju_model" "etcd" {
   name = "mongodb-etcd"
@@ -310,6 +348,8 @@ module "mongodb_sharded_cluster" {
 
   depends_on = [
     module.self_signed_certificates,
-    module.charmed_etcd
+    module.charmed_etcd,
+    juju_subnet.peers,
+    juju_subnet.clients,
   ]
 }

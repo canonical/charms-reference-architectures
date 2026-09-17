@@ -11,6 +11,24 @@ variable "remote_state" {
   })
 }
 
+variable "network_spaces" {
+  description = "CIDRs of the existing Azure subnets assigned to the peer and client Juju spaces."
+  type = object({
+    peers_cidr   = optional(string, "10.3.0.0/24")
+    clients_cidr = optional(string, "10.4.0.0/24")
+  })
+  default = {}
+
+  validation {
+    condition = (
+      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
+      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
+      can(cidrnetmask(var.network_spaces.clients_cidr))
+    )
+    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
+  }
+}
+
 variable "models" {
   description = "Names of the Azure VM models used for the MongoDB deployment. The number of shard models must match the number of shards configured."
   type = object({
@@ -51,16 +69,34 @@ variable "config_server" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "config-server" })
-    constraints = optional(string, "arch=amd64 cores=2 mem=8G")
+    constraints = optional(string, "arch=amd64 spaces=peers instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "database-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "config-server"
+        space    = "peers"
+      },
+      {
+        endpoint = "cluster"
+        space    = "peers"
+      },
+    ])
+    # The charm opens ports without endpoint names; restrict their sources to peers.
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-    })), [])
+      })), [
+      {
+        spaces = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -79,7 +115,20 @@ variable "mongos" {
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "router-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "cluster"
+        space    = "peers"
+      },
+      {
+        endpoint = "mongos_proxy"
+        space    = "clients"
+      },
+    ])
     revision = optional(number, null)
   })
   default = {}
@@ -92,16 +141,30 @@ variable "shards" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "shard" })
-    constraints = optional(string, "arch=amd64 cores=2 mem=8G")
+    constraints = optional(string, "arch=amd64 spaces=peers instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "database-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "sharding"
+        space    = "peers"
+      },
+    ])
+    # The charm opens ports without endpoint names; restrict their sources to peers.
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-    })), [])
+      })), [
+      {
+        spaces = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -130,11 +193,16 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64 cores=1 mem=2G")
+    constraints = optional(string, "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "mongos"
+        space    = "clients"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})

@@ -57,6 +57,8 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `juju_model.config_server`                           | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
 | `juju_model.shards`                                   | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
 | `juju_model.etcd`                                     | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
+| `juju_space.peers`, `juju_space.clients` | Peer spaces in the config-server and shard models; client space in the config-server model |
+| `juju_subnet.peers`, `juju_subnet.clients` | Existing Azure subnet assignments for the corresponding spaces |
 | `juju_application.opentelemetry_collector_config`    | [Juju application](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) |
 | `juju_application.opentelemetry_collector_shards`    | [Juju application](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) |
 | `juju_integration.opentelemetry_collector_prometheus` | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
@@ -69,13 +71,14 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 
 | Name                                    | Description                                                                                                                                                                                       | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default                                                                          | Required   |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | :--------: |
+| `network_spaces` | CIDRs of existing Azure subnets for the `peers` and `clients` spaces | `object({ peers_cidr = optional(string, "10.3.0.0/24"), clients_cidr = optional(string, "10.4.0.0/24") })` | `{}` | no |
 | `remote_state`                          | Azure Storage configuration for the infrastructure remote state                                                                                                                                   | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | n/a                                                                              | yes        |
 | `models`                                | Centralized model names for config-server and shards                                                                                                                                             | <pre>object({<br/>  config_server = optional(string, "mongodb-config")<br/>  shards        = optional(list(string), ["mongodb-shard-one", "mongodb-shard-two"])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `{}`                                                                             | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`                                                                             | no         |
-| `config_server`                         | MongoDB config-server application configuration                                                                                                                                                   | <pre>object({<br/>  app_name           = optional(string, "config-server")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "config-server" })<br/>  constraints        = optional(string, "arch=amd64 cores=2 mem=8G")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                             | `{}`                                                                             | no         |
+| `config_server`                         | MongoDB config-server application configuration                                                                                                                                                   | <pre>object({<br/>  app_name           = optional(string, "config-server")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "config-server" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers instance-type=Standard_D8_v3")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                             | `{}`                                                                             | no         |
 | `mongos`                                | Mongos application configuration                                                                                                                                                                  | <pre>object({<br/>  app_name           = optional(string, "mongos")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), {})<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  revision           = optional(number, null)<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                                                                                                                                                                                       | `{}`                                                                             | no         |
-| `shards`                                | Shard application configurations (scalable list)                                                                                                                                                 | <pre>list(object({<br/>  app_name           = string<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), {})<br/>  constraints        = optional(string, "arch=amd64 cores=2 mem=8G")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>}))</pre>                                                                                                                                     | `[{ app_name = "shard-one" }, { app_name = "shard-two" }]`                      | no         |
-| `data_integrator`                       | Data-integrator application configuration                                                                                                                                                         | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64 cores=1 mem=2G")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`                                                                             | no         |
+| `shards`                                | Shard application configurations (scalable list)                                                                                                                                                 | <pre>list(object({<br/>  app_name           = string<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), {})<br/>  constraints        = optional(string, "arch=amd64 spaces=peers instance-type=Standard_D8_v3")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>}))</pre>                                                                                                                                     | `[{ app_name = "shard-one" }, { app_name = "shard-two" }]`                      | no         |
+| `data_integrator`                       | Data-integrator application configuration                                                                                                                                                         | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`                                                                             | no         |
 | `s3_integrator`                         | Optional S3-compatible backup-integrator configuration                                                                                                                                            | <pre>object({<br/>  config      = map(string)<br/>  channel     = optional(string, "2/stable")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  revision    = optional(number, null)<br/>  constraints = optional(string, "arch=amd64 cores=1 mem=2G")<br/>  machines    = optional(set(string), [])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `null`                                                                           | no         |
 | `s3_access_key`                         | Optional access key for S3-compatible object storage                                                                                                                                               | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`                                                                           | no         |
 | `s3_secret_key`                         | Optional secret key for S3-compatible object storage                                                                                                                                               | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`                                                                           | no         |
@@ -233,6 +236,67 @@ terraform apply terraform.out
 
 ## Advanced Configuration
 
+### Juju spaces
+
+Following the replica-set Azure VM solution, this module creates a `peers` space
+in the config-server model and every shard model. The `clients` space is created
+only in the config-server model for mongos and Data Integrator. It assigns
+existing Azure subnets to these spaces before deploying the MongoDB applications.
+The subnets must already exist in the VNet referenced by the infrastructure state.
+The defaults match the `clouds/azure` deployment subnets:
+
+```hcl
+network_spaces = {
+  peers_cidr   = "10.3.0.0/24"
+  clients_cidr = "10.4.0.0/24"
+}
+```
+
+Override these CIDRs to match your infrastructure. The space names remain fixed.
+
+| Application | Endpoints on `peers` | Endpoints on `clients` |
+| ----------- | -------------------- | ---------------------- |
+| Config server | `database-peers`, `config-server`, `cluster` | — |
+| Each shard | `database-peers`, `sharding` | — |
+| Mongos | `router-peers`, `cluster` | `mongos_proxy` |
+| Data Integrator | — | `mongos` |
+
+Config-server and shard machines use
+`arch=amd64 spaces=peers instance-type=Standard_D8_v3` by default.
+Retain `spaces=peers` when customizing their constraints.
+Data Integrator uses `spaces=peers,clients` because it hosts the subordinate
+mongos application, which connects to both networks. For Data Integrator,
+retain both spaces and select an Azure VM size that supports at least two
+network interfaces. Existing machines supplied through `machines` must have
+access to the subnets required by their applications.
+
+Config-server and shard applications expose their charm-opened ports to the
+`peers` space by default:
+
+```hcl
+expose = [
+  { spaces = "peers" },
+]
+```
+
+This follows the subnet configured through `network_spaces.peers_cidr`.
+The MongoDB charm opens ports without endpoint names, so these rules omit
+`endpoints`. The `spaces` field controls allowed source networks; endpoint
+bindings separately control the application's network addresses. Additional
+`cidrs` extend the allowed sources. Override `config_server.expose` or each
+shard's `expose` to customize access, or set `expose = []` to disable exposure.
+See the [Juju provider exposure documentation](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application#nested-schema-for-expose).
+
+Inspect the spaces and endpoint addresses after deployment (adjust model names
+if you override `models`):
+
+```bash
+juju spaces -m mongodb-config
+juju subnets -m mongodb-shard-one
+juju exec -m mongodb-config --unit config-server/0 -- network-get database-peers --bind-address
+juju exec -m mongodb-config --unit mongos/0 -- network-get mongos_proxy --bind-address
+```
+
 ### Model and Shard Configuration
 
 This deployment supports scalable shards through dynamic model creation. All Juju model names are centrally configured in a `models` variable and matched by index to shard configurations.
@@ -266,22 +330,22 @@ shards = [
   {
     app_name    = "primary-shard"
     units       = 5
-    constraints = "arch=amd64 cores=4 mem=8G"
+    constraints = "arch=amd64 spaces=peers instance-type=Standard_D8_v3"
   },
   {
     app_name    = "analytics-shard"
     units       = 3
-    constraints = "arch=amd64 cores=2 mem=4G"
+    constraints = "arch=amd64 spaces=peers instance-type=Standard_D8_v3"
   },
   {
     app_name    = "cache-shard"
     units       = 3
-    constraints = "arch=amd64 cores=2 mem=4G"
+    constraints = "arch=amd64 spaces=peers instance-type=Standard_D8_v3"
   },
   {
     app_name    = "archive-shard"
     units       = 1
-    constraints = "arch=amd64 cores=1 mem=2G"
+    constraints = "arch=amd64 spaces=peers instance-type=Standard_D8_v3"
   }
 ]
 ```
