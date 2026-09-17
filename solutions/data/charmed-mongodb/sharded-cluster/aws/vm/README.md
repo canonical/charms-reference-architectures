@@ -57,6 +57,14 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | `juju_model.config_server`                           | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
 | `juju_model.shards`                                   | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
 | `juju_model.etcd`                                     | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
+| `juju_space.config_server_peers`                      | [Juju space](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/space)             |
+| `juju_space.config_server_clients`                    | [Juju space](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/space)             |
+| `juju_space.shard_peers`                              | [Juju space](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/space)             |
+| `juju_space.shard_clients`                            | [Juju space](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/space)             |
+| `juju_subnet.config_server_peers`                     | [Juju subnet](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/subnet)           |
+| `juju_subnet.config_server_clients`                   | [Juju subnet](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/subnet)           |
+| `juju_subnet.shard_peers`                             | [Juju subnet](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/subnet)           |
+| `juju_subnet.shard_clients`                           | [Juju subnet](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/subnet)           |
 | `juju_application.opentelemetry_collector_config`    | [Juju application](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) |
 | `juju_application.opentelemetry_collector_shards`    | [Juju application](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) |
 | `juju_integration.opentelemetry_collector_prometheus` | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
@@ -71,6 +79,7 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | :--------: |
 | `model_config`                          | Configuration for AWS models                                                                                                                                                                      | <pre>object({<br/>  cloud      = optional(string, "aws")<br/>  credential = optional(string, null)<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `{}`                                                                             | no         |
 | `vpc_id`                                | AWS VPC ID for the MongoDB models. Required with this repository's `clouds/aws` module; otherwise optional                                                                                       | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `null`                                                                           | no         |
+| `network_spaces`                      | CIDRs of the existing AWS subnets assigned to the peer and client Juju spaces in every MongoDB model                                                                                              | <pre>object({<br/>  peers_cidr   = optional(string, "10.0.2.0/24")<br/>  clients_cidr = optional(string, "10.0.3.0/24")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `{}`                                                                             | no         |
 | `models`                                | Centralized model names for config-server and shards                                                                                                                                             | <pre>object({<br/>  config_server = optional(string, "mongodb-config")<br/>  shards        = optional(list(string), ["mongodb-shard-one", "mongodb-shard-two"])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `{}`                                                                             | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`                                                                             | no         |
 | `config_server`                         | MongoDB config-server application configuration                                                                                                                                                   | <pre>object({<br/>  app_name           = optional(string, "config-server")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "config-server" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                             | `{}`                                                                             | no         |
@@ -278,6 +287,34 @@ shards = [
 - **Count validation**: Number of shard models must equal number of shards
 - **Unique names**: All model names (config + shards) must be unique
 - **Flexible naming**: Use any naming convention that fits your environment
+
+### Network spaces
+
+The solution creates model-local `peers` and `clients` Juju spaces in the
+config-server model and in every shard model. It associates the same existing
+AWS subnet CIDRs with those spaces because Juju spaces are scoped to a model.
+
+By default, config-server and shard units are placed in `peers` and these
+endpoints are bound to that space:
+
+- `database-peers` for replica-set traffic
+- `config-server` on the providing side of the config-server-to-shard relation
+- `sharding` on the requiring side of that relation
+
+The data integrator is placed in `clients` and its `mongos` endpoint is bound
+to that space. Override the existing subnet CIDRs when they differ from the
+defaults:
+
+```hcl
+network_spaces = {
+  peers_cidr   = "10.20.2.0/24"
+  clients_cidr = "10.20.3.0/24"
+}
+```
+
+The subnets must already exist and be mutually routed. Juju spaces select the
+addresses used by applications; they do not create AWS routes, security-group
+rules, or network ACLs.
 
 ### Observability Stack (COS)
 
