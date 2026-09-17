@@ -64,6 +64,24 @@ variable "data_integrator" {
   default = {}
 }
 
+variable "s3_integrator" {
+  description = "Optional S3-compatible backup integrator configuration."
+  type = object({
+    base        = optional(string, "ubuntu@24.04")
+    channel     = optional(string, "2/stable")
+    config      = map(string)
+    constraints = optional(string, "arch=amd64")
+    machines    = optional(set(string), [])
+    revision    = optional(number, null)
+  })
+  default = null
+
+  validation {
+    condition     = var.s3_integrator == null || length(var.s3_integrator.machines) <= 1
+    error_message = "The backup integrator can be placed on at most one machine."
+  }
+}
+
 variable "self_signed_certificates" {
   description = "Self-signed-certificates application configuration."
   type = object({
@@ -79,6 +97,20 @@ variable "self_signed_certificates" {
 }
 
 # Configuration variables
+
+variable "s3_access_key" {
+  description = "Optional access key for S3-compatible object storage."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "s3_secret_key" {
+  description = "Optional secret key for S3-compatible object storage."
+  type        = string
+  sensitive   = true
+  default     = null
+}
 
 variable "tls_client_private_key" {
   description = "Optional PEM private key for MongoDB client-to-server TLS certificates."

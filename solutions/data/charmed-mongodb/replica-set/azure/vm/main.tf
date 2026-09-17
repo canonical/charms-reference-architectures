@@ -21,6 +21,28 @@ resource "juju_model" "mongodb" {
   }
 }
 
+resource "juju_space" "peers" {
+  model_uuid = juju_model.mongodb.uuid
+  name       = "peers"
+}
+
+resource "juju_subnet" "peers" {
+  model_uuid = juju_model.mongodb.uuid
+  cidr       = var.network_spaces.peers_cidr
+  space_name = juju_space.peers.name
+}
+
+resource "juju_space" "clients" {
+  model_uuid = juju_model.mongodb.uuid
+  name       = "clients"
+}
+
+resource "juju_subnet" "clients" {
+  model_uuid = juju_model.mongodb.uuid
+  cidr       = var.network_spaces.clients_cidr
+  space_name = juju_space.clients.name
+}
+
 
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
@@ -78,6 +100,18 @@ module "mongodb_replica_set" {
   data_integrator = merge(var.data_integrator, {
     model_uuid = juju_model.mongodb.uuid
   })
+  backups_integrator = var.s3_integrator == null ? null : {
+    config       = var.s3_integrator.config
+    channel      = var.s3_integrator.channel
+    base         = var.s3_integrator.base
+    revision     = var.s3_integrator.revision
+    constraints  = var.s3_integrator.constraints
+    machines     = var.s3_integrator.machines
+    model_uuid   = juju_model.mongodb.uuid
+    storage_type = "s3"
+  }
+  s3_access_key          = var.s3_access_key
+  s3_secret_key          = var.s3_secret_key
   tls_client_private_key = var.tls_client_private_key
   tls_peer_private_key   = var.tls_peer_private_key
   logging_config         = var.logging_config
@@ -110,7 +144,8 @@ module "mongodb_replica_set" {
   }
 
   depends_on = [
-    juju_model.mongodb,
+    juju_subnet.peers,
+    juju_subnet.clients,
   ]
 }
 

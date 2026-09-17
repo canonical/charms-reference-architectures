@@ -45,6 +45,10 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | Name                                                  | Type                                                                                                    |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `juju_model.mongodb`                                  | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model)             |
+| `juju_space.clients`                                  | [Juju space](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/space) for Data Integrator client traffic                                                          |
+| `juju_space.peers`                                    | [Juju space](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/space) for MongoDB replica-set traffic                                                               |
+| `juju_subnet.clients`                                 | [Juju subnet](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/subnet): Assignment of the Azure client subnet to the `clients` space                                             |
+| `juju_subnet.peers`                                   | [Juju subnet](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/subnet): Assignment of the Azure peer subnet to the `peers` space                                                   |
 | `juju_application.opentelemetry_collector`            | [Juju application](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/application) |
 | `juju_integration.opentelemetry_collector_prometheus` | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
 | `juju_integration.opentelemetry_collector_loki`       | [Juju integration](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/integration) |
@@ -55,10 +59,14 @@ The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
 | Name                                    | Description                                                                                                                                                                                       | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Default         | Required   |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | :--------: |
 | `mongodb_model`                         | Name of the azure VM model                                                                                                                                                                          | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `"mongodb"`     | no         |
-| `remote_state`                          | Configuration for remote state to reference Azure infrastructure created by the clouds/azure module                                                                                                 | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | n/a             | yes        |
+| `remote_state`                          | Configuration for remote state to reference Azure infrastructure created by the clouds/azure module. Can be set via the `TF_VAR_remote_state` environment variable                                | <pre>object({<br/>  resource_group_name  = optional(string, "tfstate-rg")<br/>  storage_account_name = string<br/>  container_name       = optional(string, "tfstate")<br/>  key                  = optional(string, "infra.terraform.tfstate")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `null`          | no         |
+| `network_spaces`                        | CIDRs of the existing Azure subnets assigned to the peer and client Juju spaces                                                                                                                   | <pre>object({<br/>  peers_cidr   = optional(string, "10.3.0.0/24")<br/>  clients_cidr = optional(string, "10.4.0.0/24")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `{}`            | no         |
 | `cos`                                   | COS model, cloud, credential, and channel risk configuration                                                                                                                                      | <pre>object({<br/>  model      = optional(string, "cos")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>  risk       = optional(string, "stable")<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | `{}`            | no         |
-| `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
-| `data_integrator`                       | Data-integrator application configuration                                                                                                                                                         | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`            | no         |
+| `mongodb`                               | MongoDB replica-set application configuration                                                                                                                                                     | <pre>object({<br/>  app_name           = optional(string, "mongodb")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "8/stable")<br/>  config             = optional(map(string), { role = "replication" })<br/>  constraints        = optional(string, "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "database-peers", space = "peers" }, { endpoint = "database", space = "clients" }])<br/>  expose             = optional(list(object({ cidrs = optional(string), endpoints = optional(string), spaces = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no         |
+| `data_integrator`                       | Data-integrator application configuration                                                                                                                                                         | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64 spaces=clients")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [{ endpoint = "mongodb", space = "clients" }])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre>                                                                                                | `{}`            | no         |
+| `s3_integrator`                         | Optional S3-compatible backup-integrator configuration                                                                                                                                            | <pre>object({<br/>  config      = map(string)<br/>  channel     = optional(string, "2/stable")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  revision    = optional(number, null)<br/>  constraints = optional(string, "arch=amd64 cores=1 mem=2G")<br/>  machines    = optional(set(string), [])<br/>})</pre>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `null`          | no         |
+| `s3_access_key`                         | Optional access key for S3-compatible object storage                                                                                                                                               | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
+| `s3_secret_key`                         | Optional secret key for S3-compatible object storage                                                                                                                                               | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
 | `tls_client_private_key`                | Optional PEM private key for MongoDB client-to-server TLS                                                                                                                                         | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
 | `tls_peer_private_key`                  | Optional PEM private key for MongoDB peer-to-peer TLS                                                                                                                                             | `string` (sensitive)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `null`          | no         |
 | `logging_config`                        | Logging configuration used by the MongoDB replica-set module                                                                                                                                     | `string`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `"<root>=INFO"` | no         |
@@ -121,6 +129,35 @@ Follow the
 [`vault` charm documentation](https://charmhub.io/vault/docs/h-initialize-vault)
 to prepare it before applying this module.
 
+### S3-compatible backups
+
+The object-storage bucket or container must exist before deploying this
+solution. The supplied credentials must be able to list it and read, create,
+and delete objects under the configured path.
+
+Configure the backup integrator with the endpoint exposed by your
+S3-compatible storage service:
+
+```hcl
+s3_integrator = {
+  config = {
+    bucket   = "my-mongodb-backups"
+    region   = "my-region"
+    endpoint = "https://my-s3-compatible-endpoint.example.com"
+    path     = "mongodb"
+  }
+}
+```
+
+Provide credentials using sensitive Terraform environment variables:
+
+```bash
+export TF_VAR_s3_access_key="<s3-access-key>"
+export TF_VAR_s3_secret_key="<s3-secret-key>"
+```
+
+The exact endpoint, region, and addressing requirements depend on the selected
+S3-compatible service.
 
 ### TLS certificates
 
@@ -153,7 +190,9 @@ terraform init
 Configure your Azure infrastructure reference using the remote state from your clouds/azure deployment:
 
 Define `TF_VAR_remote_state` using the appropriate values. See
-[`variables.tf`](variables.tf) for the default values.
+[`variables.tf`](variables.tf) for the default values. Terraform picks up
+this environment variable automatically for the `remote_state` input, so it
+does not need to be passed with `-var`.
 
 ```bash
 export TF_VAR_remote_state='{
@@ -163,9 +202,6 @@ export TF_VAR_remote_state='{
   "key": "infra.terraform.tfstate"
 }'
 ```
-
-Terraform automatically loads exported variables prefixed with `TF_VAR_`, so
-the value does not need to be passed separately with `-var`.
 
 Deploy the solution in two steps:
 
@@ -178,9 +214,106 @@ terraform plan \
 terraform apply mongodb-model.out
 ```
 
+### Configure Juju spaces
+
+When the Azure infrastructure is deployed with the [`clouds/azure`](../../../../../../clouds/azure)
+module, the VNet contains two dedicated deployment subnets:
+
+| Azure subnet                  | CIDR         | Intended traffic       |
+| ------------------------------ | ------------ | ----------------------- |
+| `deployments-peers-subnet`     | `10.3.0.0/24`| MongoDB replica peers  |
+| `deployments-clients-subnet`   | `10.4.0.0/24`| MongoDB client traffic |
+
+This deployment binds MongoDB to both `deployments-peers-subnet` and
+`deployments-clients-subnet`, and binds Data Integrator to
+`deployments-clients-subnet` only.
+
+The application module depends on both subnet assignments, ensuring that the
+spaces are configured before Juju deploys the applications. After applying,
+inspect the result with:
+
+```bash
+juju subnets -m mongodb
+juju spaces -m mongodb
+```
+
+By default, each MongoDB VM is placed in both the `peers` and `clients`
+spaces, binding the peer endpoint to `peers` and the client-facing database
+endpoint to `clients`:
+
+```hcl
+mongodb = {
+  constraints = "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3"
+
+  endpoint_bindings = [
+    {
+      endpoint = "database-peers"
+      space    = "peers"
+    },
+    {
+      endpoint = "database"
+      space    = "clients"
+    },
+  ]
+}
+```
+
+Binding a machine to two spaces requires an instance type with enough network
+interfaces to attach one NIC per Azure subnet. `Standard_D8_v3` provides 4
+NICs, which is enough to bind both the `peers` and `clients` spaces on the
+same VM. When selecting a different `instance-type`, confirm it supports at
+least as many NICs as the number of spaces the machine is bound to. See the
+[Azure VM sizes documentation](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes)
+for the maximum NIC count per size.
+
+The `spaces` constraint places the machine's NICs on the peer and client
+subnets. When overriding `mongodb.constraints`, retain `spaces=peers,clients`
+and a compatible `instance-type` along with any additional placement
+requirements.
+
+The Juju space names `peers` and `clients` are fixed by this reference
+architecture. Override the existing Azure subnet CIDRs through
+`network_spaces`:
+
+```hcl
+network_spaces = {
+  peers_cidr   = "10.30.2.0/24"
+  clients_cidr = "10.30.3.0/24"
+}
+```
+
 **Step 2: Deploy the complete solution**
 
 ```bash
-terraform plan -out mongodb-complete.out
+terraform plan \
+  -out mongodb-complete.out
 terraform apply mongodb-complete.out
 ```
+
+Verify that the peer endpoint resolves to the peer subnet:
+
+```bash
+juju exec -m mongodb --unit mongodb/0 -- \
+  network-get database-peers --bind-address
+```
+
+The address should be in `10.3.0.0/24`.
+
+Verify that MongoDB's client-facing database endpoint resolves to the client
+subnet:
+
+```bash
+juju exec -m mongodb --unit mongodb/0 -- \
+  network-get database --bind-address
+```
+
+The address should be in `10.4.0.0/24`.
+
+Verify that the Data Integrator endpoint resolves to the client subnet:
+
+```bash
+juju exec -m mongodb --unit data-integrator/0 -- \
+  network-get mongodb --bind-address
+```
+
+The address should be in `10.4.0.0/24`.

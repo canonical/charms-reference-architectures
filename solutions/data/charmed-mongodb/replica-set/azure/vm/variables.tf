@@ -8,13 +8,31 @@ variable "mongodb_model" {
 }
 
 variable "remote_state" {
-  description = "Configuration for the remote state"
+  description = "Configuration for the remote state. Can be set via the TF_VAR_remote_state environment variable."
   type = object({
     resource_group_name  = optional(string, "tfstate-rg")
     storage_account_name = string
     container_name       = optional(string, "tfstate")
     key                  = optional(string, "infra.terraform.tfstate")
   })
+}
+
+variable "network_spaces" {
+  description = "CIDRs of the existing Azure subnets assigned to the peer and client Juju spaces."
+  type = object({
+    peers_cidr   = optional(string, "10.3.0.0/24")
+    clients_cidr = optional(string, "10.4.0.0/24")
+  })
+  default = {}
+
+  validation {
+    condition = (
+      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
+      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
+      can(cidrnetmask(var.network_spaces.clients_cidr))
+    )
+    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
+  }
 }
 
 variable "cos" {
@@ -38,11 +56,20 @@ variable "mongodb" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+    })), [
+      {
+        endpoint = "database-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "database"
+        space    = "clients"
+      }
+    ])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
@@ -63,17 +90,40 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=clients")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+    })), [
+      {
+        endpoint = "mongodb"
+        space    = "clients"
+      },
+    ])
     machines           = optional(set(string), null)
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
     units              = optional(number, 1)
   })
   default = {}
+}
+
+variable "s3_integrator" {
+  description = "Optional S3-compatible backup integrator configuration."
+  type = object({
+    base        = optional(string, "ubuntu@24.04")
+    channel     = optional(string, "2/stable")
+    config      = map(string)
+    constraints = optional(string, "arch=amd64")
+    machines    = optional(set(string), [])
+    revision    = optional(number, null)
+  })
+  default = null
+
+  validation {
+    condition     = var.s3_integrator == null || length(var.s3_integrator.machines) <= 1
+    error_message = "The backup integrator can be placed on at most one machine."
+  }
 }
 
 variable "self_signed_certificates" {
@@ -103,6 +153,20 @@ variable "opentelemetry_collector" {
 }
 
 # Configuration variables
+
+variable "s3_access_key" {
+  description = "Optional access key for S3-compatible object storage."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "s3_secret_key" {
+  description = "Optional secret key for S3-compatible object storage."
+  type        = string
+  sensitive   = true
+  default     = null
+}
 
 variable "tls_client_private_key" {
   description = "Optional PEM private key for MongoDB client-to-server TLS certificates."
