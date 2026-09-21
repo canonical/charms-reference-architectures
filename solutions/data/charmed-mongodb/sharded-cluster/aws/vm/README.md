@@ -299,7 +299,6 @@ runs on its machines. The following endpoints are explicitly bound to `peers`:
 | Config server   | `database-peers`, `config-server`, `cluster` |
 | Shards          | `database-peers`, `sharding`                 |
 | Mongos          | `router-peers`, `cluster`                    |
-| Data integrator | `mongos`                                     |
 
 ### Observability Stack (COS)
 
