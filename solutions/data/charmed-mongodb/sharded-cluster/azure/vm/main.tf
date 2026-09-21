@@ -64,21 +64,6 @@ resource "juju_subnet" "peers" {
   space_name = juju_space.peers[each.key].name
 }
 
-resource "juju_space" "clients" {
-  for_each = { config_server = juju_model.config_server.uuid }
-
-  model_uuid = each.value
-  name       = "clients"
-}
-
-resource "juju_subnet" "clients" {
-  for_each = { config_server = juju_model.config_server.uuid }
-
-  model_uuid = each.value
-  cidr       = var.network_spaces.clients_cidr
-  space_name = juju_space.clients[each.key].name
-}
-
 # Etcd model (hardcoded name)
 resource "juju_model" "etcd" {
   name = "mongodb-etcd"
@@ -352,6 +337,5 @@ module "mongodb_sharded_cluster" {
     module.self_signed_certificates,
     module.charmed_etcd,
     juju_subnet.peers,
-    juju_subnet.clients,
   ]
 }
