@@ -14,9 +14,14 @@ variable "remote_state" {
 variable "network_spaces" {
   description = "CIDRs of the existing Azure subnets assigned to the peer Juju spaces."
   type = object({
-    peers_cidr   = optional(string, "10.3.0.0/24")
+    peers_cidr = optional(string, "10.3.0.0/24")
   })
   default = {}
+
+  validation {
+    condition     = can(cidrnetmask(var.network_spaces.peers_cidr))
+    error_message = "Peer CIDR must be a valid IPv4 network address."
+  }
 }
 
 variable "models" {
@@ -183,7 +188,7 @@ variable "data_integrator" {
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-      })), [])
+    })), [])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
