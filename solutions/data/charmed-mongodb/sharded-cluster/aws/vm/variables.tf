@@ -196,12 +196,7 @@ variable "data_integrator" {
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-      })), [
-      {
-        endpoint = "mongos"
-        space    = "peers"
-      },
-    ])
+    })), [])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
