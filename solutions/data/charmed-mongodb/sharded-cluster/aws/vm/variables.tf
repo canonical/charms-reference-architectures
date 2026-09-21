@@ -28,6 +28,7 @@ variable "models" {
     error_message = "All model names (config server and shards) must be unique."
   }
 }
+
 variable "vpc_id" {
   description = "Optional AWS VPC ID shared by the solution infrastructure. Juju applies it to the cluster models. This setting is immutable after model creation. Required if you use the `clouds/aws` module in this repository to configure the AWS cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own AWS cloud configuration and Juju controller placement."
   type        = string
@@ -40,20 +41,15 @@ variable "vpc_id" {
 }
 
 variable "network_spaces" {
-  description = "CIDRs of the existing AWS subnets assigned to the peer and client Juju spaces in the config-server and shard models."
+  description = "CIDR of the existing AWS subnet assigned to the peers Juju space in the config-server model and every shard model."
   type = object({
-    peers_cidr   = optional(string, "10.0.2.0/24")
-    clients_cidr = optional(string, "10.0.3.0/24")
+    peers_cidr = optional(string, "10.3.0.0/24")
   })
   default = {}
 
   validation {
-    condition = (
-      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
-      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
-      can(cidrnetmask(var.network_spaces.clients_cidr))
-    )
-    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
+    condition     = can(cidrnetmask(var.network_spaces.peers_cidr))
+    error_message = "Peer CIDR must be a valid IPv4 network address."
   }
 }
 
@@ -91,6 +87,10 @@ variable "config_server" {
         endpoint = "config-server"
         space    = "peers"
       },
+      {
+        endpoint = "cluster"
+        space    = "peers"
+      },
     ])
     expose = optional(list(object({
       cidrs     = optional(string)
@@ -98,9 +98,7 @@ variable "config_server" {
       spaces    = optional(string)
       })), [
       {
-        cidrs     = "10.0.2.0/24"
-        endpoints = "config-server"
-        spaces    = "peers"
+        spaces = "peers"
       },
     ])
     machines           = optional(set(string), [])
@@ -121,7 +119,16 @@ variable "mongos" {
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "router-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "cluster"
+        space    = "peers"
+      },
+    ])
     revision = optional(number, null)
   })
   default = {}
@@ -154,9 +161,7 @@ variable "shards" {
       spaces    = optional(string)
       })), [
       {
-        cidrs     = "10.0.2.0/24"
-        endpoints = "sharding"
-        spaces    = "peers"
+        spaces = "peers"
       },
     ])
     machines           = optional(set(string), [])
@@ -187,14 +192,14 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64 spaces=clients")
+    constraints = optional(string, "arch=amd64 spaces=peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
       })), [
       {
         endpoint = "mongos"
-        space    = "clients"
+        space    = "peers"
       },
     ])
     machines           = optional(set(string), [])
