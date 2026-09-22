@@ -43,7 +43,7 @@ variable "vpc_id" {
 variable "network_spaces" {
   description = "CIDR of the existing AWS subnet assigned to the peers Juju space in the config-server model and every shard model."
   type = object({
-    peers_cidr = optional(string, "10.3.0.0/24")
+    peers_cidr   = optional(string, "10.0.2.0/24")
   })
   default = {}
 
@@ -196,7 +196,11 @@ variable "data_integrator" {
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        space = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
