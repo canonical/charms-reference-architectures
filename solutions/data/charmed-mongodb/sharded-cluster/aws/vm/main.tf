@@ -47,6 +47,28 @@ resource "juju_model" "etcd" {
   }
 }
 
+# Spaces are model-scoped, so configure them for the config server and every shard.
+locals {
+  mongodb_models = merge(
+    { config_server = juju_model.config_server.uuid },
+    { for i, model in juju_model.shards : "shard-${i}" => model.uuid }
+  )
+}
+
+resource "juju_space" "peers" {
+  for_each = local.mongodb_models
+
+  model_uuid = each.value
+  name       = "peers"
+}
+
+resource "juju_subnet" "peers" {
+  for_each = local.mongodb_models
+
+  model_uuid = each.value
+  cidr       = var.network_spaces.peers_cidr
+  space_name = juju_space.peers[each.key].name
+}
 
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
@@ -263,12 +285,14 @@ module "mongodb_sharded_cluster" {
     model_uuid = juju_model.config_server.uuid
     url        = juju_offer.certificates.url
   }
-  etcd_integration = {
-    name       = module.charmed_etcd.app_names.etcd
-    endpoint   = "etcd-client"
-    model_uuid = juju_model.etcd.uuid
-    url        = juju_offer.etcd.url
-  }
+  # TODO: uncomment this when charmlibs rollingops bumps data_interfaces
+  # to support cross-model secret sharing.
+  #etcd_integration = {
+  #  name       = module.charmed_etcd.app_names.etcd
+  #  endpoint   = "etcd-client"
+  #  model_uuid = juju_model.etcd.uuid
+  #  url        = juju_offer.etcd.url
+  #}
   cos_agent_integrations = merge(
     {
       "config-server" = {
@@ -304,6 +328,7 @@ module "mongodb_sharded_cluster" {
 
   depends_on = [
     module.self_signed_certificates,
-    module.charmed_etcd
+    module.charmed_etcd,
+    juju_subnet.peers,
   ]
 }

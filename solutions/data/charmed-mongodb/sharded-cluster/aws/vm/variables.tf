@@ -28,6 +28,7 @@ variable "models" {
     error_message = "All model names (config server and shards) must be unique."
   }
 }
+
 variable "vpc_id" {
   description = "Optional AWS VPC ID shared by the solution infrastructure. Juju applies it to the cluster models. This setting is immutable after model creation. Required if you use the `clouds/aws` module in this repository to configure the AWS cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own AWS cloud configuration and Juju controller placement."
   type        = string
@@ -36,6 +37,19 @@ variable "vpc_id" {
   validation {
     condition     = var.vpc_id == null || can(regex("^vpc-[0-9a-f]+$", var.vpc_id))
     error_message = "vpc_id must be a valid AWS VPC ID such as vpc-0123456789abcdef0."
+  }
+}
+
+variable "network_spaces" {
+  description = "CIDR of the existing AWS subnet assigned to the peers Juju space in the config-server model and every shard model."
+  type = object({
+    peers_cidr   = optional(string, "10.0.2.0/24")
+  })
+  default = {}
+
+  validation {
+    condition     = can(cidrnetmask(var.network_spaces.peers_cidr))
+    error_message = "Peer CIDR must be a valid IPv4 network address."
   }
 }
 
@@ -60,16 +74,33 @@ variable "config_server" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "config-server" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "database-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "config-server"
+        space    = "peers"
+      },
+      {
+        endpoint = "cluster"
+        space    = "peers"
+      },
+    ])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-    })), [])
+      })), [
+      {
+        spaces = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -88,7 +119,16 @@ variable "mongos" {
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "router-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "cluster"
+        space    = "peers"
+      },
+    ])
     revision = optional(number, null)
   })
   default = {}
@@ -101,16 +141,29 @@ variable "shards" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "shard" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        endpoint = "database-peers"
+        space    = "peers"
+      },
+      {
+        endpoint = "sharding"
+        space    = "peers"
+      },
+    ])
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
       spaces    = optional(string)
-    })), [])
+      })), [
+      {
+        spaces = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -139,11 +192,15 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 spaces=peers")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [])
+      })), [
+      {
+        space = "peers"
+      },
+    ])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
