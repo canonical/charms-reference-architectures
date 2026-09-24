@@ -1,17 +1,31 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-variable "model_config" {
-  description = "Configuration for Juju models."
+variable "remote_state" {
+  description = "Configuration for the remote state"
   type = object({
-    cloud      = optional(string, "aws")
-    credential = optional(string, null)
+    resource_group_name  = optional(string, "tfstate-rg")
+    storage_account_name = string
+    container_name       = optional(string, "tfstate")
+    key                  = optional(string, "infra.terraform.tfstate")
+  })
+}
+
+variable "network_spaces" {
+  description = "CIDRs of the existing Azure subnets assigned to the peer Juju spaces."
+  type = object({
+    peers_cidr = optional(string, "10.3.0.0/24")
   })
   default = {}
+
+  validation {
+    condition     = can(cidrnetmask(var.network_spaces.peers_cidr))
+    error_message = "Peer CIDR must be a valid IPv4 network address."
+  }
 }
 
 variable "models" {
-  description = "Names of the AWS models used for the MongoDB deployment. The number of shard models must match the number of shards configured."
+  description = "Names of the Azure VM models used for the MongoDB deployment. The number of shard models must match the number of shards configured."
   type = object({
     config_server = optional(string, "mongodb-config")
     shards        = optional(list(string), ["mongodb-shard-one", "mongodb-shard-two"])
@@ -26,30 +40,6 @@ variable "models" {
   validation {
     condition     = length(distinct(concat([var.models.config_server], var.models.shards))) == length(var.models.shards) + 1
     error_message = "All model names (config server and shards) must be unique."
-  }
-}
-
-variable "vpc_id" {
-  description = "Optional AWS VPC ID shared by the solution infrastructure. Juju applies it to the cluster models. This setting is immutable after model creation. Required if you use the `clouds/aws` module in this repository to configure the AWS cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own AWS cloud configuration and Juju controller placement."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.vpc_id == null || can(regex("^vpc-[0-9a-f]+$", var.vpc_id))
-    error_message = "vpc_id must be a valid AWS VPC ID such as vpc-0123456789abcdef0."
-  }
-}
-
-variable "network_spaces" {
-  description = "CIDR of the existing AWS subnet assigned to the peers Juju space in the config-server model and every shard model."
-  type = object({
-    peers_cidr   = optional(string, "10.0.2.0/24")
-  })
-  default = {}
-
-  validation {
-    condition     = can(cidrnetmask(var.network_spaces.peers_cidr))
-    error_message = "Peer CIDR must be a valid IPv4 network address."
   }
 }
 
@@ -74,7 +64,7 @@ variable "config_server" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "config-server" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
+    constraints = optional(string, "arch=amd64 spaces=peers instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -92,6 +82,7 @@ variable "config_server" {
         space    = "peers"
       },
     ])
+    # The charm opens ports without endpoint names; restrict their sources to peers.
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
@@ -141,7 +132,7 @@ variable "shards" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "shard" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
+    constraints = optional(string, "arch=amd64 spaces=peers instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -155,6 +146,7 @@ variable "shards" {
         space    = "peers"
       },
     ])
+    # The charm opens ports without endpoint names; restrict their sources to peers.
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
@@ -192,15 +184,11 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
+    constraints = optional(string, "arch=amd64 spaces=peers instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-      })), [
-      {
-        space = "peers"
-      },
-    ])
+    })), [])
     machines           = optional(set(string), [])
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -210,12 +198,12 @@ variable "data_integrator" {
 }
 
 variable "s3_integrator" {
-  description = "Optional S3 backup integrator configuration."
+  description = "Optional S3-compatible backup integrator configuration."
   type = object({
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "2/stable")
     config      = map(string)
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 cores=1 mem=2G")
     machines    = optional(set(string), [])
     revision    = optional(number, null)
   })
@@ -234,7 +222,7 @@ variable "etcd" {
     channel           = optional(string, "3.6/stable")
     revision          = optional(number, null)
     base              = optional(string, "ubuntu@24.04")
-    constraints       = optional(string, "arch=amd64")
+    constraints       = optional(string, "arch=amd64 cores=2 mem=4G")
     config            = optional(map(string), {})
     storage           = optional(map(string), {})
     units             = optional(number, 3)
@@ -252,7 +240,7 @@ variable "self_signed_certificates" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "1/stable")
     config      = optional(map(string), { ca-common-name = "MongoDB CA" })
-    constraints = optional(string, "arch=amd64")
+    constraints = optional(string, "arch=amd64 cores=1 mem=2G")
     revision    = optional(number, null)
     units       = optional(number, 1)
   })
@@ -314,16 +302,15 @@ variable "vault_kv_integration" {
 
 
 # Configuration variables
-
 variable "s3_access_key" {
-  description = "Optional S3 access key."
+  description = "Optional access key for S3-compatible object storage."
   type        = string
   sensitive   = true
   default     = null
 }
 
 variable "s3_secret_key" {
-  description = "Optional S3 secret key."
+  description = "Optional secret key for S3-compatible object storage."
   type        = string
   sensitive   = true
   default     = null

@@ -1,18 +1,24 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+# Data source to reference Azure infrastructure created by clouds/azure module
+data "terraform_remote_state" "infra_state" {
+  backend = "azurerm"
+  config  = var.remote_state
+}
+
 # Juju credentials are provided through the provider environment variables.
 provider "juju" {}
 
 # MongoDB models
 resource "juju_model" "config_server" {
-  name       = var.models.config_server
-  credential = var.model_config.credential
+  name = var.models.config_server
   cloud {
-    name = var.model_config.cloud
+    name = "azure"
   }
-  config = var.vpc_id == null ? {} : {
-    vpc-id = var.vpc_id
+  config = {
+    "resource-group-name" = data.terraform_remote_state.infra_state.outputs.infrastructure.resource_group_name
+    "network"             = data.terraform_remote_state.infra_state.outputs.infrastructure.vnet_name
   }
 }
 
@@ -25,25 +31,13 @@ resource "juju_model" "shards" {
     }
   }
 
-  name       = each.value.name
-  credential = var.model_config.credential
+  name = each.value.name
   cloud {
-    name = var.model_config.cloud
+    name = "azure"
   }
-  config = var.vpc_id == null ? {} : {
-    vpc-id = var.vpc_id
-  }
-}
-
-# Etcd model (hardcoded name)
-resource "juju_model" "etcd" {
-  name       = "mongodb-etcd"
-  credential = var.model_config.credential
-  cloud {
-    name = var.model_config.cloud
-  }
-  config = var.vpc_id == null ? {} : {
-    vpc-id = var.vpc_id
+  config = {
+    "resource-group-name" = data.terraform_remote_state.infra_state.outputs.infrastructure.resource_group_name
+    "network"             = data.terraform_remote_state.infra_state.outputs.infrastructure.vnet_name
   }
 }
 
@@ -69,6 +63,19 @@ resource "juju_subnet" "peers" {
   cidr       = var.network_spaces.peers_cidr
   space_name = juju_space.peers[each.key].name
 }
+
+# Etcd model (hardcoded name)
+resource "juju_model" "etcd" {
+  name = "mongodb-etcd"
+  cloud {
+    name = "azure"
+  }
+  config = {
+    "resource-group-name" = data.terraform_remote_state.infra_state.outputs.infrastructure.resource_group_name
+    "network"             = data.terraform_remote_state.infra_state.outputs.infrastructure.vnet_name
+  }
+}
+
 
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"
