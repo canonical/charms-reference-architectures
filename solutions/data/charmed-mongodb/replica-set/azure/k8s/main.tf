@@ -5,35 +5,11 @@
 provider "juju" {}
 
 resource "juju_model" "mongodb" {
-  name = var.mongodb_model
+  name       = var.mongodb_model.name
+  credential = var.mongodb_model.credential
   cloud {
-    name = "aws"
+    name = var.mongodb_model.cloud
   }
-  config = var.vpc_id == null ? {} : {
-    "vpc-id" = var.vpc_id
-  }
-}
-
-resource "juju_space" "peers" {
-  model_uuid = juju_model.mongodb.uuid
-  name       = "peers"
-}
-
-resource "juju_subnet" "peers" {
-  model_uuid = juju_model.mongodb.uuid
-  cidr       = var.network_spaces.peers_cidr
-  space_name = juju_space.peers.name
-}
-
-resource "juju_space" "clients" {
-  model_uuid = juju_model.mongodb.uuid
-  name       = "clients"
-}
-
-resource "juju_subnet" "clients" {
-  model_uuid = juju_model.mongodb.uuid
-  cidr       = var.network_spaces.clients_cidr
-  space_name = juju_space.clients.name
 }
 
 module "cos" {
@@ -70,21 +46,8 @@ module "self_signed_certificates" {
   units       = var.self_signed_certificates.units
 }
 
-resource "juju_application" "opentelemetry_collector" {
-  charm {
-    name     = "opentelemetry-collector"
-    channel  = var.opentelemetry_collector.channel
-    revision = var.opentelemetry_collector.revision
-    base     = var.opentelemetry_collector.base
-  }
-
-  name       = var.opentelemetry_collector.app_name
-  config     = var.opentelemetry_collector.config
-  model_uuid = juju_model.mongodb.uuid
-}
-
 module "mongodb_replica_set" {
-  source = "git::https://github.com/canonical/mongodb-operator//terraform/product/replica_set?ref=8/edge"
+  source = "git::https://github.com/canonical/mongodb-k8s-operator//terraform/product/replica_set?ref=8/edge"
 
   mongodb = merge(var.mongodb, {
     model_uuid = juju_model.mongodb.uuid
@@ -118,9 +81,17 @@ module "mongodb_replica_set" {
     name     = module.self_signed_certificates.app_name
     endpoint = module.self_signed_certificates.provides["certificates"]
   }
-  cos_agent_integration = {
-    name     = juju_application.opentelemetry_collector.name
-    endpoint = "cos-agent"
+  grafana_dashboard_integration = {
+    kind = "offer"
+    url  = module.cos.offers.grafana_dashboards.url
+  }
+  metrics_endpoint_integration = {
+    kind = "offer"
+    url  = module.cos.offers.prometheus_metrics_endpoint.url
+  }
+  logging_integration = {
+    kind = "offer"
+    url  = module.cos.offers.loki_logging.url
   }
   ldap_integration = var.ldap_integration == null ? null : {
     kind = "offer"
@@ -136,40 +107,6 @@ module "mongodb_replica_set" {
   }
 
   depends_on = [
-    juju_subnet.peers,
-    juju_subnet.clients,
+    juju_model.mongodb,
   ]
-}
-
-resource "juju_integration" "opentelemetry_collector_prometheus" {
-  model_uuid = juju_model.mongodb.uuid
-  application {
-    name     = juju_application.opentelemetry_collector.name
-    endpoint = "send-remote-write"
-  }
-  application {
-    offer_url = module.cos.offers.prometheus_receive_remote_write.url
-  }
-}
-
-resource "juju_integration" "opentelemetry_collector_loki" {
-  model_uuid = juju_model.mongodb.uuid
-  application {
-    name     = juju_application.opentelemetry_collector.name
-    endpoint = "send-loki-logs"
-  }
-  application {
-    offer_url = module.cos.offers.loki_logging.url
-  }
-}
-
-resource "juju_integration" "opentelemetry_collector_dashboards" {
-  model_uuid = juju_model.mongodb.uuid
-  application {
-    name     = juju_application.opentelemetry_collector.name
-    endpoint = "grafana-dashboards-provider"
-  }
-  application {
-    offer_url = module.cos.offers.grafana_dashboards.url
-  }
 }

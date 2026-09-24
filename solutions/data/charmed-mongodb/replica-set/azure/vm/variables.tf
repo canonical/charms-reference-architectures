@@ -2,27 +2,26 @@
 # See LICENSE file for licensing details.
 
 variable "mongodb_model" {
-  description = "Name of the AWS VM model that will be created by the module."
+  description = "Name of the Azure VM model that will be created by the module."
   type        = string
   default     = "mongodb"
 }
 
-variable "vpc_id" {
-  description = "Optional AWS VPC ID shared by the solution infrastructure. Juju applies it to the AWS MongoDB model. This setting is immutable after model creation. Required if you use the `clouds/aws` module in this repository to configure the AWS cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own AWS cloud configuration and Juju controller placement."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.vpc_id == null || can(regex("^vpc-[0-9a-f]+$", var.vpc_id))
-    error_message = "vpc_id must be a valid AWS VPC ID such as vpc-0123456789abcdef0."
-  }
+variable "remote_state" {
+  description = "Configuration for the remote state. Can be set via the TF_VAR_remote_state environment variable."
+  type = object({
+    resource_group_name  = optional(string, "tfstate-rg")
+    storage_account_name = string
+    container_name       = optional(string, "tfstate")
+    key                  = optional(string, "infra.terraform.tfstate")
+  })
 }
 
 variable "network_spaces" {
-  description = "CIDRs of the existing AWS subnets assigned to the peer and client Juju spaces."
+  description = "CIDRs of the existing Azure subnets assigned to the peer and client Juju spaces."
   type = object({
-    peers_cidr   = optional(string, "10.0.2.0/24")
-    clients_cidr = optional(string, "10.0.3.0/24")
+    peers_cidr   = optional(string, "10.3.0.0/24")
+    clients_cidr = optional(string, "10.4.0.0/24")
   })
   default = {}
 
@@ -57,7 +56,7 @@ variable "mongodb" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
+    constraints = optional(string, "arch=amd64 spaces=peers,clients instance-type=Standard_D8_v3")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
@@ -66,6 +65,10 @@ variable "mongodb" {
         endpoint = "database-peers"
         space    = "peers"
       },
+      {
+        endpoint = "database"
+        space    = "clients"
+      }
     ])
     expose = optional(list(object({
       cidrs     = optional(string)
@@ -106,7 +109,7 @@ variable "data_integrator" {
 }
 
 variable "s3_integrator" {
-  description = "Optional S3 backup integrator configuration."
+  description = "Optional S3-compatible backup integrator configuration."
   type = object({
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "2/stable")
@@ -149,18 +152,17 @@ variable "opentelemetry_collector" {
   default = {}
 }
 
-
 # Configuration variables
 
 variable "s3_access_key" {
-  description = "Optional AWS S3 access key."
+  description = "Optional access key for S3-compatible object storage."
   type        = string
   sensitive   = true
   default     = null
 }
 
 variable "s3_secret_key" {
-  description = "Optional AWS S3 secret key."
+  description = "Optional secret key for S3-compatible object storage."
   type        = string
   sensitive   = true
   default     = null

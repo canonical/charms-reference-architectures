@@ -49,6 +49,7 @@ resource "local_file" "host_set_up_script" {
     kube_config            = var.AKS_CLUSTER_NAME != "" ? azurerm_kubernetes_cluster.aks[0].kube_config_raw : "",
     vnet_name              = azurerm_virtual_network.main_vnet.name,
     controller_subnet_name = azurerm_subnet.controller_subnet.name,
+    controller_constraints = var.CONTROLLER_CONSTRAINTS,
     aks_cluster_name       = var.AKS_CLUSTER_NAME != "" ? var.AKS_CLUSTER_NAME : "",
     app_client_id          = var.SETUP_LOCAL_HOST ? azuread_application.juju_app[0].client_id : "",
     app_password           = var.SETUP_LOCAL_HOST ? azuread_application_password.juju_app_password[0].value : "",
@@ -81,4 +82,3 @@ resource "null_resource" "SETUP_LOCAL_HOST" {
     local_file.host_set_up_script,
   ]
 }
-

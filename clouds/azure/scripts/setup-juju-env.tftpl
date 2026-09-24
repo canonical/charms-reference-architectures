@@ -70,7 +70,7 @@ sudo -u ubuntu bash -c "juju default-region azure ${region}"
 
 # Bootstrap Juju controller
 echo "Bootstrapping Juju controller..."
-sudo -u ubuntu bash -c "juju bootstrap azure --config resource-group-name=${rg_name} --config network=${vnet_name} --to subnet=${controller_subnet_name} az"
+sudo -u ubuntu bash -c "juju bootstrap azure --constraints='${controller_constraints}' --config resource-group-name=${rg_name} --config network=${vnet_name} --to subnet=${controller_subnet_name} az"
 
 # set up k8s on the same controller if aks_cluster_name is set
 if [ -z "${aks_cluster_name}" ]; then

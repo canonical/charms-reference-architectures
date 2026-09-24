@@ -1,16 +1,23 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+# Data source to reference Azure infrastructure created by clouds/azure module
+data "terraform_remote_state" "infra_state" {
+  backend = "azurerm"
+  config  = var.remote_state
+}
+
 # Juju credentials are provided through the provider environment variables.
 provider "juju" {}
 
 resource "juju_model" "mongodb" {
   name = var.mongodb_model
   cloud {
-    name = "aws"
+    name = "azure"
   }
-  config = var.vpc_id == null ? {} : {
-    "vpc-id" = var.vpc_id
+  config = {
+    "resource-group-name" = data.terraform_remote_state.infra_state.outputs.infrastructure.resource_group_name
+    "network"             = data.terraform_remote_state.infra_state.outputs.infrastructure.vnet_name
   }
 }
 
@@ -35,6 +42,7 @@ resource "juju_subnet" "clients" {
   cidr       = var.network_spaces.clients_cidr
   space_name = juju_space.clients.name
 }
+
 
 module "cos" {
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.2"

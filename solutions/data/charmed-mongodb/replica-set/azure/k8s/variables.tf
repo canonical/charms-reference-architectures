@@ -2,38 +2,13 @@
 # See LICENSE file for licensing details.
 
 variable "mongodb_model" {
-  description = "Name of the AWS VM model that will be created by the module."
-  type        = string
-  default     = "mongodb"
-}
-
-variable "vpc_id" {
-  description = "Optional AWS VPC ID shared by the solution infrastructure. Juju applies it to the AWS MongoDB model. This setting is immutable after model creation. Required if you use the `clouds/aws` module in this repository to configure the AWS cloud, since that module creates the Juju controller in a specific VPC. Leave unset if you manage your own AWS cloud configuration and Juju controller placement."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.vpc_id == null || can(regex("^vpc-[0-9a-f]+$", var.vpc_id))
-    error_message = "vpc_id must be a valid AWS VPC ID such as vpc-0123456789abcdef0."
-  }
-}
-
-variable "network_spaces" {
-  description = "CIDRs of the existing AWS subnets assigned to the peer and client Juju spaces."
+  description = "Configuration for the Kubernetes model that hosts MongoDB."
   type = object({
-    peers_cidr   = optional(string, "10.0.2.0/24")
-    clients_cidr = optional(string, "10.0.3.0/24")
+    name       = optional(string, "mongodb")
+    cloud      = optional(string, "k8s")
+    credential = optional(string, "k8s")
   })
   default = {}
-
-  validation {
-    condition = (
-      var.network_spaces.peers_cidr != var.network_spaces.clients_cidr &&
-      can(cidrnetmask(var.network_spaces.peers_cidr)) &&
-      can(cidrnetmask(var.network_spaces.clients_cidr))
-    )
-    error_message = "Peer and client CIDRs must be distinct and valid IPv4 network addresses."
-  }
 }
 
 variable "cos" {
@@ -53,26 +28,15 @@ variable "cos" {
 variable "mongodb" {
   description = "MongoDB replica-set application configuration."
   type = object({
-    app_name    = optional(string, "mongodb")
+    app_name    = optional(string, "mongodb-k8s")
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "8/stable")
     config      = optional(map(string), { role = "replication" })
-    constraints = optional(string, "arch=amd64 spaces=peers")
-    endpoint_bindings = optional(set(object({
-      space    = string
-      endpoint = optional(string)
-    })), [
-      {
-        endpoint = "database-peers"
-        space    = "peers"
-      },
-    ])
+    constraints = optional(string, "arch=amd64")
     expose = optional(list(object({
       cidrs     = optional(string)
       endpoints = optional(string)
-      spaces    = optional(string)
     })), [])
-    machines           = optional(set(string), null)
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
     units              = optional(number, 3)
@@ -87,16 +51,11 @@ variable "data_integrator" {
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "latest/stable")
     config      = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })
-    constraints = optional(string, "arch=amd64 spaces=clients")
+    constraints = optional(string, "arch=amd64")
     endpoint_bindings = optional(set(object({
       space    = string
       endpoint = optional(string)
-    })), [
-      {
-        endpoint = "mongodb"
-        space    = "clients"
-      },
-    ])
+    })), [])
     machines           = optional(set(string), null)
     revision           = optional(number, null)
     storage_directives = optional(map(string), {})
@@ -106,7 +65,7 @@ variable "data_integrator" {
 }
 
 variable "s3_integrator" {
-  description = "Optional S3 backup integrator configuration."
+  description = "Optional S3-compatible backup integrator configuration."
   type = object({
     base        = optional(string, "ubuntu@24.04")
     channel     = optional(string, "2/stable")
@@ -137,30 +96,17 @@ variable "self_signed_certificates" {
   default = {}
 }
 
-variable "opentelemetry_collector" {
-  description = "OpenTelemetry Collector subordinate application configuration."
-  type = object({
-    app_name = optional(string, "opentelemetry-collector")
-    base     = optional(string, "ubuntu@24.04")
-    channel  = optional(string, "2/stable")
-    config   = optional(map(string), {})
-    revision = optional(number, null)
-  })
-  default = {}
-}
-
-
 # Configuration variables
 
 variable "s3_access_key" {
-  description = "Optional AWS S3 access key."
+  description = "Optional access key for S3-compatible object storage."
   type        = string
   sensitive   = true
   default     = null
 }
 
 variable "s3_secret_key" {
-  description = "Optional AWS S3 secret key."
+  description = "Optional secret key for S3-compatible object storage."
   type        = string
   sensitive   = true
   default     = null

@@ -1,0 +1,234 @@
+# Charmed MongoDB replica set on Azure Kubernetes
+
+This Terraform root module deploys a Charmed MongoDB replica set with the
+`mongodb-k8s` charm on Azure Kubernetes Service (AKS). It uses the
+[Terraform Juju provider](https://github.com/juju/terraform-provider-juju/).
+For more information, refer to the provider
+[documentation](https://registry.terraform.io/providers/juju/juju/latest/docs).
+
+The solution includes a data integrator, TLS certificates, and COS Lite. It can
+also integrate with existing LDAP and Vault deployments.
+
+## Requirements
+
+| Name          | Version      |
+| ------------- | ------------ |
+| Terraform     | >= 1.6       |
+| Juju provider | ~> 2.0       |
+| Juju          | 3.6 or later |
+| Azure CLI     | latest       |
+
+The AKS cluster must already be registered as a Juju cloud. By
+default, both the MongoDB and COS models use a cloud and credential named
+`k8s`. Override `mongodb_model` and `cos` when the registered names differ.
+
+The Juju provider can be configured with `JUJU_CONTROLLER_ADDRESSES`,
+`JUJU_USERNAME`, and `JUJU_PASSWORD`.
+
+## Providers
+
+| Name   | Version   |
+| ------ | --------- |
+| `juju` | ~> 2.0    |
+
+## Modules
+
+| Name                       | Source                                                                    |
+| -------------------------- | ------------------------------------------------------------------------- |
+| `mongodb_replica_set`      | `canonical/mongodb-k8s-operator//terraform/product/replica_set` (`8/edge`) |
+| `cos`                      | `canonical/observability-stack//terraform/cos-lite` (`tf-cos-lite-3.0.2`) |
+| `self_signed_certificates` | `canonical/self-signed-certificates-operator//terraform` (`main`)         |
+
+## Resources
+
+| Name                 | Type                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| `juju_model.mongodb` | [Juju model](https://registry.terraform.io/providers/juju/juju/latest/docs/resources/model) |
+
+Applications, integrations, offers, secrets, and COS resources are managed by
+the child modules listed above.
+
+## Inputs
+
+| Name                                    | Description                                                                                                            | Type                                                                                                                                                                                                                                                    | Default         | Required |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | :------: |
+| `mongodb_model`                         | Kubernetes model configuration for MongoDB.                                                                           | <pre>object({<br/>  name       = optional(string, "mongodb")<br/>  cloud      = optional(string, "k8s")<br/>  credential = optional(string, "k8s")<br/>})</pre>                                    | `{}`            | no       |
+| `cos`                                   | COS model and storage configuration. The storage defaults are intended only for testing.                              | <pre>object({<br/>  model_name                    = optional(string, "cos")<br/>  cloud                         = optional(string, "k8s")<br/>  credential                    = optional(string, "k8s")<br/>  risk                          = optional(string, "stable")<br/>  grafana_storage_directives    = optional(map(string), { database = "1G" })<br/>  loki_storage_directives       = optional(map(string), { active-index-directory = "1G", loki-chunks = "1G" })<br/>  prometheus_storage_directives = optional(map(string), { database = "1G" })<br/>})</pre> | `{}`            | no       |
+| `mongodb`                               | MongoDB replica-set application configuration.                                                                        | <pre>object({<br/>  app_name    = optional(string, "mongodb-k8s")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  channel     = optional(string, "8/stable")<br/>  config      = optional(map(string), { role = "replication" })<br/>  constraints = optional(string, "arch=amd64")<br/>  expose      = optional(list(object({<br/>    cidrs     = optional(string)<br/>    endpoints = optional(string)<br/>  })), [])<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 3)<br/>})</pre> | `{}`            | no       |
+| `data_integrator`                       | Data-integrator application configuration.                                                                            | <pre>object({<br/>  app_name           = optional(string, "data-integrator")<br/>  base               = optional(string, "ubuntu@24.04")<br/>  channel            = optional(string, "latest/stable")<br/>  config             = optional(map(string), { database-name = "mongodb", extra-user-roles = "admin" })<br/>  constraints        = optional(string, "arch=amd64")<br/>  endpoint_bindings  = optional(set(object({ space = string, endpoint = optional(string) })), [])<br/>  machines           = optional(set(string), null)<br/>  revision           = optional(number, null)<br/>  storage_directives = optional(map(string), {})<br/>  units              = optional(number, 1)<br/>})</pre> | `{}`            | no       |
+| `s3_integrator`                         | Optional S3-compatible backup-integrator configuration.                                                               | <pre>object({<br/>  base        = optional(string, "ubuntu@24.04")<br/>  channel     = optional(string, "2/stable")<br/>  config      = map(string)<br/>  constraints = optional(string, "arch=amd64")<br/>  machines    = optional(set(string), [])<br/>  revision    = optional(number, null)<br/>})</pre> | `null`          | no       |
+| `s3_access_key`                         | Optional access key for S3-compatible object storage.                                                                 | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
+| `s3_secret_key`                         | Optional secret key for S3-compatible object storage.                                                                 | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
+| `self_signed_certificates`              | Self-signed certificate provider configuration.                                                                       | <pre>object({<br/>  app_name    = optional(string, "self-signed-certificates")<br/>  base        = optional(string, "ubuntu@24.04")<br/>  channel     = optional(string, "1/stable")<br/>  config      = optional(map(string), { ca-common-name = "MongoDB CA" })<br/>  constraints = optional(string, "arch=amd64")<br/>  revision    = optional(number, null)<br/>  units       = optional(number, 1)<br/>})</pre> | `{}`            | no       |
+| `tls_client_private_key`                | Optional PEM private key for MongoDB client-to-server TLS certificates.                                                | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
+| `tls_peer_private_key`                  | Optional PEM private key for MongoDB peer-to-peer TLS certificates.                                                    | `string` (sensitive)                                                                                                                                                                                                                                    | `null`          | no       |
+| `ldap_integration`                      | Optional existing LDAP offer. Must be configured with `ldap_certificate_transfer_integration`.                        | `object({ url = string })`                                                                                                                                                                                                                               | `null`          | no       |
+| `ldap_certificate_transfer_integration` | Optional existing LDAP certificate-transfer offer. Must be configured with `ldap_integration`.                        | `object({ url = string })`                                                                                                                                                                                                                               | `null`          | no       |
+| `vault_kv_integration`                  | Optional existing Vault KV offer for MongoDB encryption at rest.                                                       | `object({ url = string })`                                                                                                                                                                                                                               | `null`          | no       |
+| `logging_config`                        | Logging configuration used by the MongoDB replica-set module.                                                          | `string`                                                                                                                                                                                                                                                 | `"<root>=INFO"` | no       |
+
+## Outputs
+
+| Name         | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| `components` | Map of all components deployed by the solution.                           |
+| `metadata`   | Metadata of the MongoDB replica-set deployment.                           |
+| `models`     | Map keyed by model UUID containing the components deployed in each model. |
+| `offers`     | Map of offers exposed by the MongoDB replica-set module.                  |
+
+## Optional integrations
+
+### LDAP
+
+The module does not deploy LDAP. To integrate an LDAP deployment from another
+model, provide both its `ldap` and `ldap-certificate-transfer` offer URLs:
+
+```hcl
+ldap_integration = {
+  url = "admin/ldap.ldap"
+}
+
+ldap_certificate_transfer_integration = {
+  url = "admin/ldap.send-ca-cert"
+}
+```
+
+Both integrations must be configured together and must refer to an existing,
+operational LDAP deployment.
+
+
+### Encryption at rest
+
+Enable encryption in the MongoDB configuration and provide the Vault KV offer:
+
+```hcl
+mongodb = {
+  config = {
+    role                        = "replication"
+    enable-encryption-at-rest   = "true"
+  }
+}
+
+vault_kv_integration = {
+  url = "admin/vault.vault-kv"
+}
+```
+
+The module does not initialize, unseal, authorize, or configure Vault.
+
+The offer must refer to an existing operational Vault deployment.
+Follow the
+[`vault` charm documentation](https://charmhub.io/vault/docs/h-initialize-vault)
+to prepare it before applying this module.
+
+### S3-compatible backups
+
+The object-storage bucket or container must exist before deploying this
+solution. The supplied credentials must be able to list it and read, create,
+and delete objects under the configured path.
+
+Configure the backup integrator with the endpoint exposed by your
+S3-compatible storage service:
+
+```hcl
+s3_integrator = {
+  config = {
+    bucket   = "my-mongodb-backups"
+    region   = "my-region"
+    endpoint = "https://my-s3-compatible-endpoint.example.com"
+    path     = "mongodb"
+  }
+}
+```
+
+Provide credentials using sensitive Terraform environment variables:
+
+```bash
+export TF_VAR_s3_access_key="<s3-access-key>"
+export TF_VAR_s3_secret_key="<s3-secret-key>"
+```
+
+The exact endpoint, region, and addressing requirements depend on the selected
+S3-compatible service.
+
+### TLS certificates
+
+The solution deploys `self-signed-certificates` by default. This is suitable
+for evaluation, use your organization's certificate provider in production.
+Custom client and peer private keys can be supplied through
+`tls_client_private_key` and `tls_peer_private_key`.
+
+## Deploy
+
+The following diagram shows the components deployed by this solution and their integrations.
+
+![Charmed MongoDB replica set deployment](docs/replica-set-azure-k8s.excalidraw.svg)
+
+Authenticate with Azure and obtain the AKS kubeconfig if the cluster has not
+already been registered with Juju:
+
+```bash
+az login
+az aks get-credentials \
+  --resource-group "<resource-group-name>" \
+  --name "<aks-cluster-name>"
+juju add-k8s k8s --client
+```
+
+If the AKS cloud is not registered in Juju as `k8s`, configure its registered
+cloud and credential names:
+
+```hcl
+mongodb_model = {
+  cloud      = "my-aks"
+  credential = "my-aks"
+}
+
+cos = {
+  cloud      = "my-aks"
+  credential = "my-aks"
+}
+```
+
+The default COS storage directives explicitly allocate 1 GiB to Grafana and
+Prometheus, and 1 GiB to each of Loki's two volumes. These small defaults are
+intended only for local testing. Size every volume for the expected retention
+and ingestion volume before production deployment:
+
+```hcl
+cos = {
+  grafana_storage_directives = {
+    database = "20G"
+  }
+  loki_storage_directives = {
+    active-index-directory = "20G"
+    loki-chunks             = "100G"
+  }
+  prometheus_storage_directives = {
+    database = "100G"
+  }
+}
+```
+
+Initialize Terraform:
+
+```bash
+terraform init
+```
+
+Deploy the solution in two steps. First, create the MongoDB model:
+
+```bash
+terraform plan \
+  -target=juju_model.mongodb \
+  -out mongodb-model.out
+terraform apply mongodb-model.out
+```
+
+Then plan and apply the rest of the solution:
+
+```bash
+terraform plan \
+  -out terraform.out
+terraform apply terraform.out
+```
