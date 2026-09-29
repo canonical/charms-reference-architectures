@@ -99,8 +99,8 @@ EOF
     echo "Bootstrapping Juju controller (attempt $attempt)..."
     $JUJU bootstrap "google/${region}" gcp \
       --credential gcp-credentials \
-      --config "vpc-id=${network_name}" \
-      --config vpc-id-force=true \
+      --model-default "vpc-id=${network_name}" \
+      --model-default vpc-id-force=true \
       --to "subnet=${controller_subnet_name}" \
       --constraints "${controller_constraints}" 2>&1 | tee "$BOOTSTRAP_LOG" && break
     [ "$attempt" -lt 16 ] &&
