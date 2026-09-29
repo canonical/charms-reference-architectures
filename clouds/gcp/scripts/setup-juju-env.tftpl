@@ -1,0 +1,150 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Runs as the Juju client's user, "ubuntu" on the bastion or the invoking user
+# locally. sa_email is set on the bastion path only.
+JUJU="/snap/bin/juju"
+# sudo-rs on Ubuntu 26.04 ignores sudo -E, so env passes the variable to apt
+APT="sudo env DEBIAN_FRONTEND=noninteractive apt"
+# Temporary files, removed on exit whichever steps ran
+CREDENTIALS_FILE="" BOOTSTRAP_LOG="" GCLOUD_CONFIG=""
+trap 'rm -rf "$CREDENTIALS_FILE" "$BOOTSTRAP_LOG" "$GCLOUD_CONFIG"' EXIT
+
+if [ -n "${sa_email}" ]; then
+  # The module owns the bastion, so the script upgrades it and installs
+  # terraform. The script leaves the user's local packages alone.
+  KUBECONFIG_PATH="$HOME/.kube/config"
+  $APT update -y
+  $APT upgrade -y
+  echo "Installing terraform..."
+  sudo snap install terraform --classic
+else
+  # A separate file leaves the user's ~/.kube/config and its current context
+  # unchanged. add-k8s reads the file only during registration.
+  KUBECONFIG_PATH="$HOME/.kube/juju-gke-config"
+fi
+
+# sudo can time out waiting for a password during a long local apply, so an
+# installed juju snap is kept
+if ! snap list juju >/dev/null 2>&1; then
+  echo "Installing juju..."
+  sudo snap install juju --channel=3.6
+fi
+echo "Initializing juju..."
+mkdir -p "$HOME/.local/share/juju"
+
+# gcloud and the GKE auth plugin are only needed to register the GKE cluster
+if [ -n "${gke_cluster_name}" ]; then
+  if [ -n "${sa_email}" ]; then
+    # The google-cloud-cli snap does not ship gke-gcloud-auth-plugin, so the
+    # bastion installs both from Google's apt repository.
+    if ! command -v gcloud >/dev/null 2>&1 || ! command -v gke-gcloud-auth-plugin >/dev/null 2>&1; then
+      echo "Installing the Google Cloud CLI and the GKE auth plugin..."
+      $APT install -y apt-transport-https ca-certificates gnupg curl
+      curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg |
+        sudo gpg --dearmor --yes -o /usr/share/keyrings/cloud.google.gpg
+      echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" |
+        sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list >/dev/null
+      $APT update -y
+      $APT install -y google-cloud-cli google-cloud-cli-gke-gcloud-auth-plugin
+    fi
+  else
+    for tool in gcloud gke-gcloud-auth-plugin; do
+      if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "Error: $tool must be installed and on PATH to register the GKE cluster with Juju." >&2
+        exit 1
+      fi
+    done
+  fi
+fi
+
+if $JUJU show-controller gcp >/dev/null 2>&1; then
+  echo "Juju controller 'gcp' already exists, skipping credential setup and bootstrap."
+else
+  echo "Setting up GCP credentials for Juju..."
+  CREDENTIALS_FILE="$HOME/credentials.yaml"
+  BOOTSTRAP_LOG="$(mktemp)"
+  if [ -n "${sa_email}" ]; then
+    # The service account attached to the bastion, no secret on disk
+    cat <<EOF >"$CREDENTIALS_FILE"
+credentials:
+  google:
+    gcp-credentials:
+      auth-type: service-account
+      service-account: ${sa_email}
+EOF
+  else
+    # Key file written by Terraform (local_sensitive_file, 0600)
+    cat <<EOF >"$CREDENTIALS_FILE"
+credentials:
+  google:
+    gcp-credentials:
+      auth-type: jsonfile
+      file: ${sa_key_path}
+EOF
+  fi
+  chmod 600 "$CREDENTIALS_FILE"
+
+  echo "Adding Juju credentials..."
+  $JUJU add-credential -f "$CREDENTIALS_FILE" --client google ||
+    $JUJU update-credential google gcp-credentials -f "$CREDENTIALS_FILE" --client
+
+  echo "Setting default region for Juju..."
+  $JUJU default-region google "${region}"
+
+  # Google documents IAM grants taking 2 minutes typically, 7 or more at worst.
+  # Bootstrap is retried on permission errors only, for about 8 minutes.
+  for attempt in $(seq 16); do
+    echo "Bootstrapping Juju controller (attempt $attempt)..."
+    $JUJU bootstrap "google/${region}" gcp \
+      --credential gcp-credentials \
+      --config "vpc-id=${network_name}" \
+      --config vpc-id-force=true \
+      --to "subnet=${controller_subnet_name}" \
+      --constraints "${controller_constraints}" 2>&1 | tee "$BOOTSTRAP_LOG" && break
+    [ "$attempt" -lt 16 ] &&
+      grep -qE 'google cloud denied access|Error 403|does not have access to service account' "$BOOTSTRAP_LOG" ||
+      exit 1
+    sleep 30
+  done
+fi
+
+# set up k8s on the same controller if gke_cluster_name is set
+if [ -z "${gke_cluster_name}" ]; then
+  echo "GKE cluster name is not set, skipping Kubernetes setup."
+# Checks the controller, because the client always has a built-in "k8s" cloud
+# when ~/.kube/config exists
+elif $JUJU show-cloud k8s --controller gcp >/dev/null 2>&1; then
+  echo "Kubernetes cloud 'k8s' is already registered, skipping Kubernetes setup."
+else
+  echo "Setting up GKE kubeconfig..."
+  mkdir -p "$HOME/.kube"
+  if [ -n "${sa_email}" ]; then
+    # The attached service account authenticates through the metadata server.
+    # --internal-ip keeps the bastion and the controller on the private endpoint.
+    KUBECONFIG="$KUBECONFIG_PATH" gcloud container clusters get-credentials "${gke_cluster_name}" \
+      --location "${zone}" \
+      --project "${project_id}" \
+      --internal-ip
+  else
+    # A throwaway gcloud config signs in with the Juju key. The credential
+    # override variable crashes the config-helper that the auth plugin runs.
+    GCLOUD_CONFIG="$(mktemp -d)"
+    export CLOUDSDK_CONFIG="$GCLOUD_CONFIG"
+    gcloud auth activate-service-account --key-file "${sa_key_path}" --quiet
+    # The controller reaches the public endpoint on this path
+    KUBECONFIG="$KUBECONFIG_PATH" gcloud container clusters get-credentials "${gke_cluster_name}" \
+      --location "${zone}" \
+      --project "${project_id}"
+  fi
+  chmod 600 "$KUBECONFIG_PATH"
+
+  echo "Setting up Kubernetes on the Juju controller..."
+  # The strictly confined juju snap can't run the host's auth plugin. The
+  # snap's binary runs unconfined, as in the AWS module.
+  KUBECONFIG="$KUBECONFIG_PATH" /snap/juju/current/bin/juju add-k8s k8s --client --controller gcp
+fi
+
+echo "Juju environment setup script completed successfully."
+# End of script

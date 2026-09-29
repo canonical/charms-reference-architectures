@@ -48,3 +48,6 @@ terraform.rc
 # terragrunt files
 **/.terragrunt-cache/*
 terragrunt-debug.tfvars.json
+
+# Setup script generated at apply time by the SETUP_LOCAL_HOST path
+clouds/*/scripts/setup-juju-env.sh
