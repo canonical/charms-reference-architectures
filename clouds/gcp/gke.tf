@@ -60,8 +60,10 @@ resource "google_container_cluster" "gke" {
     enable_private_endpoint = false
   }
 
-  # Restrict the public endpoint when SOURCE_ADDRESSES is set. The bastion and
-  # the controller use the private endpoint, which this does not gate.
+  # Restrict the control plane when SOURCE_ADDRESSES is set. GKE enforces this
+  # list on the private endpoint too, so every subnet that talks to the K8s API
+  # needs to be in it: the controller's, and the deployment subnets', because
+  # machine units read cross-model secrets offered from K8s straight from the API.
   dynamic "master_authorized_networks_config" {
     for_each = var.SOURCE_ADDRESSES == null ? [] : [1]
     content {
@@ -70,7 +72,12 @@ resource "google_container_cluster" "gke" {
       gcp_public_cidrs_access_enabled = var.SETUP_LOCAL_HOST
 
       dynamic "cidr_blocks" {
-        for_each = concat(var.SOURCE_ADDRESSES, [google_compute_subnetwork.controller_subnet.ip_cidr_range])
+        for_each = concat(var.SOURCE_ADDRESSES, [
+          google_compute_subnetwork.controller_subnet.ip_cidr_range,
+          google_compute_subnetwork.deployments_subnet.ip_cidr_range,
+          google_compute_subnetwork.deployments_peers_subnet.ip_cidr_range,
+          google_compute_subnetwork.deployments_clients_subnet.ip_cidr_range,
+        ])
         content {
           cidr_block = cidr_blocks.value
         }
