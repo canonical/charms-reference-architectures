@@ -13,12 +13,9 @@ if [ "${bastion}" = "true" ]; then
   sudo apt update -y
   sudo apt upgrade -y
   KUBECONFIG_PATH="$HOME/.kube/config"
-  EKS_AUTH=(AWS_ACCESS_KEY_ID="${access_key}" AWS_SECRET_ACCESS_KEY="${secret_key}")
 else
   # Leaves the user's ~/.kube/config and its current context unchanged
   KUBECONFIG_PATH="$HOME/.kube/juju-eks-config"
-  # The identity that runs Terraform created the cluster, so it is its admin
-  EKS_AUTH=()
 fi
 
 # Installed snaps are kept, so a local run does not need sudo
@@ -69,7 +66,7 @@ elif $JUJU show-cloud k8s --controller aws >/dev/null 2>&1; then
 else
   echo "Setting up EKS kubeconfig..."
   mkdir -p "$HOME/.kube"
-  env "$${EKS_AUTH[@]}" aws eks update-kubeconfig \
+  aws eks update-kubeconfig \
     --name "${eks_cluster_name}" \
     --region "${region}" \
     --kubeconfig "$KUBECONFIG_PATH"
@@ -77,8 +74,7 @@ else
 
   # The snap's binary runs unconfined, so it can call the aws auth plugin
   echo "Setting up Kubernetes on the Juju controller..."
-  env KUBECONFIG="$KUBECONFIG_PATH" "$${EKS_AUTH[@]}" \
-    /snap/juju/current/bin/juju add-k8s k8s --controller aws
+  KUBECONFIG="$KUBECONFIG_PATH" /snap/juju/current/bin/juju add-k8s k8s --controller aws
 fi
 
 echo "Juju environment setup script completed successfully."

@@ -132,8 +132,8 @@ resource "null_resource" "set_up_bastion_script" {
 
   provisioner "remote-exec" {
     inline = [
-      "bash ~/setup-juju-env.sh",
-      "rm ~/setup-juju-env.sh",
+      # inline lines run without set -e, so pass the script's status through
+      "bash ~/setup-juju-env.sh; rc=$?; rm -f ~/setup-juju-env.sh; exit $rc",
     ]
   }
 
@@ -149,5 +149,7 @@ resource "null_resource" "set_up_bastion_script" {
     aws_vpc.main_vpc,
     aws_subnet.controller_subnet,
     aws_eks_cluster.eks,
+    aws_eks_access_policy_association.bastion,
+    aws_iam_role_policy.bastion_eks,
   ]
 }
