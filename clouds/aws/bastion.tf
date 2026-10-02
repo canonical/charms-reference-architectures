@@ -119,6 +119,7 @@ resource "null_resource" "set_up_bastion_script" {
   count = var.PROVISION_BASTION ? 1 : 0
   provisioner "file" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
+      bastion          = true,
       region           = var.REGION,
       vpc_id           = aws_vpc.main_vpc.id,
       subnet_id        = aws_subnet.controller_subnet.id,
