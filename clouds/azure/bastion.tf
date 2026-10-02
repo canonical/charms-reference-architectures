@@ -134,6 +134,7 @@ resource "null_resource" "set_up_bastion_script" {
   count = var.PROVISION_BASTION ? 1 : 0
   provisioner "file" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
+      bastion                = true,
       rg_name                = azurerm_resource_group.main_rg.name,
       mi_name                = var.PROVISION_BASTION ? azurerm_user_assigned_identity.bastion_identity[0].name : "",
       subscription_id        = var.AZURE_SUBSCRIPTION_ID,

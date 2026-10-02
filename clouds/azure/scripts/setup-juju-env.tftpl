@@ -2,27 +2,43 @@
 
 set -euo pipefail
 
-sudo apt update -y
-sudo apt upgrade -y
+# Runs as the Juju client's user, "ubuntu" on the bastion or the invoking user
+# locally. Only the bastion gets its packages upgraded and extra tools.
+JUJU=/snap/bin/juju
+CREDENTIALS_FILE="$HOME/credentials.yaml"
+trap 'rm -f "$CREDENTIALS_FILE"' EXIT
 
-# Install Juju
-echo "Install terraform"
-sudo snap install terraform --classic
-echo "Installing juju..."
-sudo snap install juju
-echo "Initializing juju..."
-sudo -u ubuntu bash -c "mkdir -p ~/.local/share/juju"
+if [ "${bastion}" = "true" ]; then
+  sudo apt update -y
+  sudo apt upgrade -y
+  echo "Installing terraform..."
+  sudo snap install terraform --classic
+  echo "Installing Azure CLI..."
+  curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+  KUBECONFIG_PATH="$HOME/.kube/config"
+else
+  # Leaves the user's ~/.kube/config and its current context unchanged
+  KUBECONFIG_PATH="$HOME/.kube/juju-aks-config"
+fi
 
-# set up azure credentials for juju
-echo "Setting up Azure credentials for Juju..."
-if [ -z "${mi_name}" ]; then
-  # check that app_client_id and app_password are set
-  if [ -z "${app_client_id}" ] || [ -z "${app_password}" ]; then
-    echo "Error: app_client_id and app_password must be set when mi_name is not set."
-    exit 1
-  fi
-  echo "Managed identity name is not set, using service principal ."
-  cat <<EOF >/home/ubuntu/credentials.yaml
+# Installed snaps are kept, so a local run does not need sudo
+if ! snap list juju >/dev/null 2>&1; then
+  echo "Installing juju..."
+  sudo snap install juju --channel=3.6
+fi
+mkdir -p "$HOME/.local/share/juju"
+
+if $JUJU show-controller az >/dev/null 2>&1; then
+  echo "Juju controller 'az' already exists, skipping credential setup and bootstrap."
+else
+  echo "Setting up Azure credentials for Juju..."
+  if [ -z "${mi_name}" ]; then
+    if [ -z "${app_client_id}" ] || [ -z "${app_password}" ]; then
+      echo "Error: app_client_id and app_password must be set when mi_name is not set."
+      exit 1
+    fi
+    echo "Managed identity name is not set, using service principal."
+    cat <<EOF >"$CREDENTIALS_FILE"
 credentials:
   azure:
     azure-option-one:
@@ -31,9 +47,9 @@ credentials:
       application-password: ${app_password}
       subscription-id: ${subscription_id}
 EOF
-else
-  echo "Using managed identity for Azure credentials..."
-  cat <<EOF >/home/ubuntu/credentials.yaml
+  else
+    echo "Using managed identity for Azure credentials..."
+    cat <<EOF >"$CREDENTIALS_FILE"
 credentials:
   azure:
     azure-option-one:
@@ -41,51 +57,40 @@ credentials:
       managed-identity-path: ${rg_name}/${mi_name}
       subscription-id: ${subscription_id}
 EOF
+  fi
+  chmod 600 "$CREDENTIALS_FILE"
+
+  echo "Adding Juju credentials..."
+  $JUJU add-credential -f "$CREDENTIALS_FILE" --client azure ||
+    $JUJU update-credential azure azure-option-one -f "$CREDENTIALS_FILE" --client
+
+  # model-default keeps new models in this resource group and VNet, --config covers the controller model only
+  echo "Bootstrapping Juju controller..."
+  $JUJU bootstrap "azure/${region}" az \
+    --credential azure-option-one \
+    --constraints "${controller_constraints}" \
+    --model-default "resource-group-name=${rg_name}" \
+    --model-default "network=${vnet_name}" \
+    --to "subnet=${controller_subnet_name}"
 fi
 
-echo "Setting permissions for credentials.yaml..."
-chown ubuntu:ubuntu /home/ubuntu/credentials.yaml
-chmod 644 /home/ubuntu/credentials.yaml
-
-# set up AKS kubeconf if aks_cluster_name is set
-if [ -z "${aks_cluster_name}" ]; then
-  echo "AKS cluster name is not set, skipping AKS kubeconfig setup."
-else
-  echo "Setting up AKS kubeconfig..."
-  sudo -u ubuntu bash -c "mkdir -p ~/.kube"
-  cat <<EOF >/home/ubuntu/.kube/config
-${kube_config}
-EOF
-  echo "Setting permissions for kubeconfig..."
-  chown ubuntu:ubuntu /home/ubuntu/.kube/config
-  chmod 644 /home/ubuntu/.kube/config
-fi
-
-# Add juju credentials using ubuntu user
-echo "Adding Juju credentials..."
-sudo -u ubuntu bash -c "juju add-credential -f /home/ubuntu/credentials.yaml --client azure"
-
-echo "Setting default region for Juju..."
-sudo -u ubuntu bash -c "juju default-region azure ${region}"
-
-# Bootstrap Juju controller
-echo "Bootstrapping Juju controller..."
-sudo -u ubuntu bash -c "juju bootstrap azure --constraints='${controller_constraints}' --config resource-group-name=${rg_name} --config network=${vnet_name} --to subnet=${controller_subnet_name} az"
-
-# set up k8s on the same controller if aks_cluster_name is set
+# Checks the controller only, the client may already have a "k8s" cloud
 if [ -z "${aks_cluster_name}" ]; then
   echo "AKS cluster name is not set, skipping Kubernetes setup."
+elif $JUJU show-cloud k8s --controller az >/dev/null 2>&1; then
+  echo "Kubernetes cloud 'k8s' is already registered, skipping Kubernetes setup."
 else
+  echo "Setting up AKS kubeconfig..."
+  mkdir -p "$HOME/.kube"
+  cat <<EOF >"$KUBECONFIG_PATH"
+${kube_config}
+EOF
+  chmod 600 "$KUBECONFIG_PATH"
+
+  # The snap's binary runs unconfined, so it can read any kubeconfig path
   echo "Setting up Kubernetes on the Juju controller..."
-  sudo -u ubuntu bash -c "juju add-k8s k8s --client --controller az"
+  KUBECONFIG="$KUBECONFIG_PATH" /snap/juju/current/bin/juju add-k8s k8s --controller az
 fi
 
-echo "Juju environment setup complete."
-echo "Cleaning up temporary files..."
-rm -f /home/ubuntu/credentials.yaml
-echo "Temporary files cleaned up."
-echo "Installing Azure CLI..."
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-echo "Azure CLI installed successfully."
 echo "Juju environment setup script completed successfully."
 # End of script

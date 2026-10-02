@@ -2,18 +2,40 @@
 
 set -euo pipefail
 
-sudo apt update -y
-sudo apt upgrade -y
+# Runs as the Juju client's user, "ubuntu" on the bastion or the invoking user
+# locally. Only the bastion gets its packages upgraded.
+# The confined juju snap can't read ~/.aws, so an inherited profile breaks bootstrap
+JUJU="env -u AWS_PROFILE /snap/bin/juju"
+CREDENTIALS_FILE="$HOME/credentials.yaml"
+trap 'rm -f "$CREDENTIALS_FILE"' EXIT
 
-# Install Juju
-echo "Installing juju..."
-sudo snap install juju --channel=3.6
-echo "Initializing juju..."
-sudo -u ubuntu bash -c "mkdir -p ~/.local/share/juju"
+if [ "${bastion}" = "true" ]; then
+  sudo apt update -y
+  sudo apt upgrade -y
+  KUBECONFIG_PATH="$HOME/.kube/config"
+else
+  # Leaves the user's ~/.kube/config and its current context unchanged
+  KUBECONFIG_PATH="$HOME/.kube/juju-eks-config"
+fi
 
-# set up aws credentials for juju
-echo "Setting up AWS credentials for Juju..."
-cat <<EOF >/home/ubuntu/credentials.yaml
+# Installed snaps are kept, so a local run does not need sudo
+if ! snap list juju >/dev/null 2>&1; then
+  echo "Installing juju..."
+  sudo snap install juju --channel=3.6
+fi
+mkdir -p "$HOME/.local/share/juju"
+
+if [ -n "${eks_cluster_name}" ] && ! command -v aws >/dev/null 2>&1; then
+  echo "Installing the AWS CLI..."
+  sudo snap install aws-cli --classic
+  export PATH="$PATH:/snap/bin"
+fi
+
+if $JUJU show-controller aws >/dev/null 2>&1; then
+  echo "Juju controller 'aws' already exists, skipping credential setup and bootstrap."
+else
+  echo "Setting up AWS credentials for Juju..."
+  cat <<EOF >"$CREDENTIALS_FILE"
 credentials:
   aws:
     aws-credentials:
@@ -21,65 +43,39 @@ credentials:
       access-key: ${access_key}
       secret-key: ${secret_key}
 EOF
+  chmod 600 "$CREDENTIALS_FILE"
 
-echo "Setting permissions for credentials.yaml..."
-chown ubuntu:ubuntu /home/ubuntu/credentials.yaml
-chmod 644 /home/ubuntu/credentials.yaml
-
-if [ -z "${eks_cluster_name}" ]; then
-  echo "EKS cluster name is not set, skipping EKS kubeconfig setup."
-else
-  echo "Setting up EKS kubeconfig..."
-  if [ ! -x /snap/bin/aws ]; then
-    sudo snap install aws-cli --classic
-  fi
-
-  sudo -u ubuntu mkdir -p /home/ubuntu/.kube
-  sudo -u ubuntu env \
-    HOME=/home/ubuntu \
-    AWS_ACCESS_KEY_ID="${access_key}" \
-    AWS_SECRET_ACCESS_KEY="${secret_key}" \
-    /snap/bin/aws eks update-kubeconfig \
-      --name "${eks_cluster_name}" \
-      --region "${region}" \
-      --kubeconfig /home/ubuntu/.kube/config
-  chown ubuntu:ubuntu /home/ubuntu/.kube/config
-  chmod 600 /home/ubuntu/.kube/config
-fi
-
-if sudo -u ubuntu /snap/bin/juju show-controller aws >/dev/null 2>&1; then
-  echo "Juju controller 'aws' already exists, skipping credential setup and bootstrap."
-else
   echo "Adding Juju credentials..."
-  sudo -u ubuntu /snap/bin/juju add-credential \
-    -f /home/ubuntu/credentials.yaml --client aws
+  $JUJU add-credential -f "$CREDENTIALS_FILE" --client aws ||
+    $JUJU update-credential aws aws-credentials -f "$CREDENTIALS_FILE" --client
 
+  # model-default keeps new models in this VPC, --config covers the controller model only
   echo "Bootstrapping Juju controller..."
-  sudo -u ubuntu /snap/bin/juju bootstrap "aws/${region}" \
-    --config "vpc-id=${vpc_id}" \
-    --config vpc-id-force=true \
-    --to "subnet=${subnet_id}" \
-    aws \
-    --credential aws-credentials
+  $JUJU bootstrap "aws/${region}" aws \
+    --credential aws-credentials \
+    --model-default "vpc-id=${vpc_id}" \
+    --model-default vpc-id-force=true \
+    --to "subnet=${subnet_id}"
 fi
 
-# set up k8s on the same controller if eks_cluster_name is set
+# Checks the controller only, the client may already have a "k8s" cloud
 if [ -z "${eks_cluster_name}" ]; then
   echo "EKS cluster name is not set, skipping Kubernetes setup."
+elif $JUJU show-cloud k8s --controller aws >/dev/null 2>&1; then
+  echo "Kubernetes cloud 'k8s' is already registered, skipping Kubernetes setup."
 else
+  echo "Setting up EKS kubeconfig..."
+  mkdir -p "$HOME/.kube"
+  aws eks update-kubeconfig \
+    --name "${eks_cluster_name}" \
+    --region "${region}" \
+    --kubeconfig "$KUBECONFIG_PATH"
+  chmod 600 "$KUBECONFIG_PATH"
+
+  # The snap's binary runs unconfined, so it can call the aws auth plugin
   echo "Setting up Kubernetes on the Juju controller..."
-  sudo -u ubuntu env \
-    HOME=/home/ubuntu \
-    PATH="/usr/bin:/bin:/snap/bin" \
-    KUBECONFIG=/home/ubuntu/.kube/config \
-    AWS_ACCESS_KEY_ID="${access_key}" \
-    AWS_SECRET_ACCESS_KEY="${secret_key}" \
-    /snap/juju/current/bin/juju add-k8s k8s --client --controller aws
+  KUBECONFIG="$KUBECONFIG_PATH" /snap/juju/current/bin/juju add-k8s k8s --controller aws
 fi
 
-echo "Juju environment setup complete."
-echo "Cleaning up temporary files..."
-rm -f /home/ubuntu/credentials.yaml
-echo "Temporary files cleaned up."
 echo "Juju environment setup script completed successfully."
 # End of script

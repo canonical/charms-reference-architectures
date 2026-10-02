@@ -91,6 +91,29 @@ resource "aws_iam_role_policy_attachment" "bastion_role_attachment" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# Lets the bastion open Juju's per-model security groups to the VPC, so test
+# runners there can reach machine units
+resource "aws_iam_role_policy" "bastion_sg" {
+  count = var.PROVISION_BASTION ? 1 : 0
+  role  = aws_iam_role.bastion_role[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "ec2:DescribeSecurityGroups"
+        Resource = "*"
+      },
+      {
+        Effect    = "Allow"
+        Action    = "ec2:AuthorizeSecurityGroupIngress"
+        Resource  = "arn:aws:ec2:${var.REGION}:*:security-group/*"
+        Condition = { ArnEquals = { "ec2:Vpc" = aws_vpc.main_vpc.arn } }
+      },
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "bastion_profile" {
   count = var.PROVISION_BASTION ? 1 : 0
   role  = aws_iam_role.bastion_role[count.index].name
@@ -119,6 +142,7 @@ resource "null_resource" "set_up_bastion_script" {
   count = var.PROVISION_BASTION ? 1 : 0
   provisioner "file" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
+      bastion          = true,
       region           = var.REGION,
       vpc_id           = aws_vpc.main_vpc.id,
       subnet_id        = aws_subnet.controller_subnet.id,
@@ -131,8 +155,8 @@ resource "null_resource" "set_up_bastion_script" {
 
   provisioner "remote-exec" {
     inline = [
-      "bash ~/setup-juju-env.sh",
-      "rm ~/setup-juju-env.sh",
+      # inline lines run without set -e, so pass the script's status through
+      "bash ~/setup-juju-env.sh; rc=$?; rm -f ~/setup-juju-env.sh; exit $rc",
     ]
   }
 
@@ -148,5 +172,7 @@ resource "null_resource" "set_up_bastion_script" {
     aws_vpc.main_vpc,
     aws_subnet.controller_subnet,
     aws_eks_cluster.eks,
+    aws_eks_access_policy_association.bastion,
+    aws_iam_role_policy.bastion_eks,
   ]
 }
