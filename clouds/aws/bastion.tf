@@ -91,6 +91,29 @@ resource "aws_iam_role_policy_attachment" "bastion_role_attachment" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# Lets the bastion open Juju's per-model security groups to the VPC, so test
+# runners there can reach machine units
+resource "aws_iam_role_policy" "bastion_sg" {
+  count = var.PROVISION_BASTION ? 1 : 0
+  role  = aws_iam_role.bastion_role[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "ec2:DescribeSecurityGroups"
+        Resource = "*"
+      },
+      {
+        Effect    = "Allow"
+        Action    = "ec2:AuthorizeSecurityGroupIngress"
+        Resource  = "arn:aws:ec2:${var.REGION}:*:security-group/*"
+        Condition = { ArnEquals = { "ec2:Vpc" = aws_vpc.main_vpc.arn } }
+      },
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "bastion_profile" {
   count = var.PROVISION_BASTION ? 1 : 0
   role  = aws_iam_role.bastion_role[count.index].name
