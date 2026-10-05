@@ -30,6 +30,7 @@ resource "azurerm_role_definition" "bastion_role" {
       "Microsoft.Resources/*",
       "Microsoft.Storage/*",
       "Microsoft.ManagedIdentity/userAssignedIdentities/*",
+      "Microsoft.ContainerService/managedClusters/read",
     ]
   }
 
