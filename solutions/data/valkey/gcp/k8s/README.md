@@ -1,6 +1,6 @@
 # Valkey on Kubernetes with TLS, COS Lite and GCS backups
 
-Solution module that composes the [Valkey Kubernetes product module](https://github.com/canonical/valkey-operator/tree/dpe-10797-charm-product-tf-modules/terraform/product/k8s)
+Solution module that composes the [Valkey Kubernetes product module](https://github.com/canonical/valkey-operator/tree/9/edge/terraform/product/k8s)
 into a complete stack. You provide a bucket name, and the module handles the rest.
 
 ## Deployed stack

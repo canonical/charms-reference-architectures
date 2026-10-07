@@ -1,6 +1,6 @@
 # Valkey on Kubernetes on Azure with TLS, COS Lite and Blob Storage backups
 
-Solution module that composes the [Valkey Kubernetes product module](https://github.com/canonical/valkey-operator/tree/dpe-10797-charm-product-tf-modules/terraform/product/k8s)
+Solution module that composes the [Valkey Kubernetes product module](https://github.com/canonical/valkey-operator/tree/9/edge/terraform/product/k8s)
 into a complete stack on AKS. You provide a resource group and a storage account name, and the
 module handles the rest.
 

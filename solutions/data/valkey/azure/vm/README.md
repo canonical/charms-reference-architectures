@@ -1,6 +1,6 @@
 # Valkey on Azure machines with TLS, COS Lite and Blob Storage backups
 
-Solution module that composes the [Valkey machine product module](https://github.com/canonical/valkey-operator/tree/dpe-10797-charm-product-tf-modules/terraform/product/vm) into a
+Solution module that composes the [Valkey machine product module](https://github.com/canonical/valkey-operator/tree/9/edge/terraform/product/vm) into a
 complete stack on Azure VMs. You provide a resource group, a storage account name and the name of
 a Kubernetes cloud for COS Lite, and the module handles the rest.
 

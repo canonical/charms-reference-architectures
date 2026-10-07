@@ -22,7 +22,7 @@ module "cos" {
 }
 
 module "valkey" {
-  source = "git::https://github.com/canonical/valkey-operator//terraform/product/vm?ref=dpe-10797-charm-product-tf-modules"
+  source = "git::https://github.com/canonical/valkey-operator//terraform/product/vm?ref=9/edge"
 
   risk = var.risk
 
