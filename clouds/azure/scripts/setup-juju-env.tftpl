@@ -6,6 +6,7 @@ set -euo pipefail
 # locally. Only the bastion gets its packages upgraded and extra tools.
 JUJU=/snap/bin/juju
 CREDENTIALS_FILE="$HOME/credentials.yaml"
+CREDENTIAL_NAME=azure-option-one
 trap 'rm -f "$CREDENTIALS_FILE"' EXIT
 
 if [ "${bastion}" = "true" ]; then
@@ -41,7 +42,7 @@ else
     cat <<EOF >"$CREDENTIALS_FILE"
 credentials:
   azure:
-    azure-option-one:
+    $CREDENTIAL_NAME:
       auth-type: service-principal-secret
       application-id: ${app_client_id}
       application-password: ${app_password}
@@ -52,7 +53,7 @@ EOF
     cat <<EOF >"$CREDENTIALS_FILE"
 credentials:
   azure:
-    azure-option-one:
+    $CREDENTIAL_NAME:
       auth-type: managed-identity
       managed-identity-path: ${rg_name}/${mi_name}
       subscription-id: ${subscription_id}
@@ -62,12 +63,12 @@ EOF
 
   echo "Adding Juju credentials..."
   $JUJU add-credential -f "$CREDENTIALS_FILE" --client azure ||
-    $JUJU update-credential azure azure-option-one -f "$CREDENTIALS_FILE" --client
+    $JUJU update-credential azure "$CREDENTIAL_NAME" -f "$CREDENTIALS_FILE" --client
 
   # model-default keeps new models in this resource group and VNet, --config covers the controller model only
   echo "Bootstrapping Juju controller..."
   $JUJU bootstrap "azure/${region}" az \
-    --credential azure-option-one \
+    --credential "$CREDENTIAL_NAME" \
     --constraints "${controller_constraints}" \
     --model-default "resource-group-name=${rg_name}" \
     --model-default "network=${vnet_name}" \
@@ -87,9 +88,8 @@ ${kube_config}
 EOF
   chmod 600 "$KUBECONFIG_PATH"
 
-  # The snap's binary runs unconfined, so it can read any kubeconfig path
   echo "Setting up Kubernetes on the Juju controller..."
-  KUBECONFIG="$KUBECONFIG_PATH" /snap/juju/current/bin/juju add-k8s k8s --controller az
+  KUBECONFIG="$KUBECONFIG_PATH" $JUJU add-k8s k8s --controller az
 fi
 
 echo "Juju environment setup script completed successfully."

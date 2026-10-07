@@ -7,6 +7,7 @@ set -euo pipefail
 # The confined juju snap can't read ~/.aws, so an inherited profile breaks bootstrap
 JUJU="env -u AWS_PROFILE /snap/bin/juju"
 CREDENTIALS_FILE="$HOME/credentials.yaml"
+CREDENTIAL_NAME=aws-credentials
 trap 'rm -f "$CREDENTIALS_FILE"' EXIT
 
 if [ "${bastion}" = "true" ]; then
@@ -38,7 +39,7 @@ else
   cat <<EOF >"$CREDENTIALS_FILE"
 credentials:
   aws:
-    aws-credentials:
+    $CREDENTIAL_NAME:
       auth-type: access-key
       access-key: ${access_key}
       secret-key: ${secret_key}
@@ -47,12 +48,12 @@ EOF
 
   echo "Adding Juju credentials..."
   $JUJU add-credential -f "$CREDENTIALS_FILE" --client aws ||
-    $JUJU update-credential aws aws-credentials -f "$CREDENTIALS_FILE" --client
+    $JUJU update-credential aws "$CREDENTIAL_NAME" -f "$CREDENTIALS_FILE" --client
 
   # model-default keeps new models in this VPC, --config covers the controller model only
   echo "Bootstrapping Juju controller..."
   $JUJU bootstrap "aws/${region}" aws \
-    --credential aws-credentials \
+    --credential "$CREDENTIAL_NAME" \
     --model-default "vpc-id=${vpc_id}" \
     --model-default vpc-id-force=true \
     --to "subnet=${subnet_id}"
@@ -72,7 +73,8 @@ else
     --kubeconfig "$KUBECONFIG_PATH"
   chmod 600 "$KUBECONFIG_PATH"
 
-  # The snap's binary runs unconfined, so it can call the aws auth plugin
+  # The confined juju snap can't run the aws CLI the kubeconfig calls for a token,
+  # so this uses the unconfined binary inside the snap
   echo "Setting up Kubernetes on the Juju controller..."
   KUBECONFIG="$KUBECONFIG_PATH" /snap/juju/current/bin/juju add-k8s k8s --controller aws
 fi
