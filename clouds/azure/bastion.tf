@@ -30,6 +30,7 @@ resource "azurerm_role_definition" "bastion_role" {
       "Microsoft.Resources/*",
       "Microsoft.Storage/*",
       "Microsoft.ManagedIdentity/userAssignedIdentities/*",
+      "Microsoft.ContainerService/managedClusters/read",
     ]
   }
 
@@ -134,6 +135,7 @@ resource "null_resource" "set_up_bastion_script" {
   count = var.PROVISION_BASTION ? 1 : 0
   provisioner "file" {
     content = templatefile("scripts/setup-juju-env.tftpl", {
+      bastion                = true,
       rg_name                = azurerm_resource_group.main_rg.name,
       mi_name                = var.PROVISION_BASTION ? azurerm_user_assigned_identity.bastion_identity[0].name : "",
       subscription_id        = var.AZURE_SUBSCRIPTION_ID,
@@ -151,8 +153,8 @@ resource "null_resource" "set_up_bastion_script" {
 
   provisioner "remote-exec" {
     inline = [
-      "bash ~/setup-juju-env.sh",
-      "rm ~/setup-juju-env.sh",
+      # inline lines run without set -e, so pass the script's status through
+      "bash ~/setup-juju-env.sh; rc=$?; rm -f ~/setup-juju-env.sh; exit $rc",
     ]
   }
 

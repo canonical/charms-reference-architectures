@@ -41,7 +41,10 @@ resource "local_file" "host_set_up_script" {
   # if SETUP_LOCAL_HOST is true then initialize the controller
   count    = var.SETUP_LOCAL_HOST ? 1 : 0
   filename = "${path.module}/scripts/setup-juju-env.sh"
+  # Holds the service principal password
+  file_permission = "0700"
   content = templatefile("scripts/setup-juju-env.tftpl", {
+    bastion                = false,
     rg_name                = azurerm_resource_group.main_rg.name,
     mi_name                = "",
     subscription_id        = var.AZURE_SUBSCRIPTION_ID,
