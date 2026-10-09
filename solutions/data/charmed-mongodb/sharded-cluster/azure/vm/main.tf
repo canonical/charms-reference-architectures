@@ -292,14 +292,12 @@ module "mongodb_sharded_cluster" {
     model_uuid = juju_model.config_server.uuid
     url        = juju_offer.certificates.url
   }
-  # TODO: uncomment this when charmlibs rollingops bumps data_interfaces
-  # to support cross-model secret sharing.
-  #etcd_integration = {
-  #  name       = module.charmed_etcd.app_names.etcd
-  #  endpoint   = "etcd-client"
-  #  model_uuid = juju_model.etcd.uuid
-  #  url        = juju_offer.etcd.url
-  #}
+  etcd_integration = {
+    name       = module.charmed_etcd.app_names.etcd
+    endpoint   = "etcd-client"
+    model_uuid = juju_model.etcd.uuid
+    url        = juju_offer.etcd.url
+  }
   cos_agent_integrations = merge(
     {
       "config-server" = {
