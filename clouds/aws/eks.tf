@@ -185,3 +185,46 @@ resource "aws_eks_addon" "ebs_csi" {
 
   depends_on = [aws_eks_pod_identity_association.ebs_csi]
 }
+
+# The bastion's instance profile runs kubectl and juju add-k8s there
+resource "aws_iam_role_policy" "bastion_eks" {
+  count = var.PROVISION_BASTION && var.EKS_CLUSTER_NAME != "" ? 1 : 0
+  role  = aws_iam_role.bastion_role[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "eks:DescribeCluster"
+        Resource = aws_eks_cluster.eks[0].arn
+      },
+    ]
+  })
+}
+
+resource "aws_eks_access_entry" "bastion" {
+  count         = var.PROVISION_BASTION && var.EKS_CLUSTER_NAME != "" ? 1 : 0
+  cluster_name  = aws_eks_cluster.eks[0].name
+  principal_arn = aws_iam_role.bastion_role[0].arn
+}
+
+resource "aws_eks_access_policy_association" "bastion" {
+  count         = var.PROVISION_BASTION && var.EKS_CLUSTER_NAME != "" ? 1 : 0
+  cluster_name  = aws_eks_cluster.eks[0].name
+  principal_arn = aws_eks_access_entry.bastion[0].principal_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
+# The cluster security group only admits its own members, so open it to the
+# VPC for the bastion and machine units that talk to pods directly
+resource "aws_vpc_security_group_ingress_rule" "eks_from_vpc" {
+  count             = var.EKS_CLUSTER_NAME != "" ? 1 : 0
+  security_group_id = aws_eks_cluster.eks[0].vpc_config[0].cluster_security_group_id
+  cidr_ipv4         = aws_vpc.main_vpc.cidr_block
+  ip_protocol       = "-1"
+  description       = "All traffic from the VPC"
+}
