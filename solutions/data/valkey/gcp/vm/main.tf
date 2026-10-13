@@ -74,6 +74,7 @@ module "valkey" {
 }
 
 module "ssc" {
+  # No semver release exists, so this pins a commit (tagged rev684 to rev688) for reproducibility.
   source = "git::https://github.com/canonical/self-signed-certificates-operator//terraform?ref=baf7355a536d454871b96e7afafcd166bbc029f2"
 
   channel     = "1/${var.risk}"

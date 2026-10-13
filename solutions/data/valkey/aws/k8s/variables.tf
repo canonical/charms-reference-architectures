@@ -52,6 +52,11 @@ variable "risk" {
   description = "Risk level of the Valkey, COS Lite and integrator channels (edge, beta, candidate or stable)."
   type        = string
   default     = "edge"
+
+  validation {
+    condition     = contains(["edge", "beta", "candidate", "stable"], var.risk)
+    error_message = "risk must be one of edge, beta, candidate or stable."
+  }
 }
 
 variable "s3_bucket" {

@@ -53,6 +53,9 @@ terraform apply \
   -var k8s_cloud=k8s
 ```
 
+`azure_resource_group`, `azure_storage_account` and `k8s_cloud` must match the values used when
+you created the AKS cluster and the storage account.
+
 Set `k8s_cloud` to the name the AKS cluster has on the controller. A controller bootstrapped on
 Azure defaults to the `azure` cloud, which cannot host these models.
 
