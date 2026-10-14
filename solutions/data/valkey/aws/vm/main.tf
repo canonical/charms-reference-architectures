@@ -12,7 +12,7 @@ data "aws_region" "current" {}
 
 # COS Lite runs on Kubernetes only, so it gets its own model on the Kubernetes cloud.
 module "cos" {
-  source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.1.0"
+  source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.3"
 
   risk = var.risk
 

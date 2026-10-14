@@ -7,7 +7,7 @@ locals {
 }
 
 module "cos" {
-  source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.1.0"
+  source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.3"
 
   risk = var.risk
 
