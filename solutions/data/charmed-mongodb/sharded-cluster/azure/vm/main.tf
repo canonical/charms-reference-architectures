@@ -325,11 +325,17 @@ module "mongodb_sharded_cluster" {
     url  = var.vault_kv_integration.url
   }
 
-  s3_access_key          = var.s3_access_key
-  s3_secret_key          = var.s3_secret_key
-  tls_client_private_key = var.tls_client_private_key
-  tls_peer_private_key   = var.tls_peer_private_key
-  logging_config         = var.logging_config
+  s3_access_key                                   = var.s3_access_key
+  s3_secret_key                                   = var.s3_secret_key
+  s3_secret_version                               = var.s3_secret_version
+  s3_secret_uri                                   = var.s3_secret_uri
+  config_server_tls_client_private_key            = var.config_server_tls_client_private_key
+  config_server_tls_client_private_key_version    = var.config_server_tls_client_private_key_version
+  config_server_tls_client_private_key_secret_uri = var.config_server_tls_client_private_key_secret_uri
+  config_server_tls_peer_private_key              = var.config_server_tls_peer_private_key
+  config_server_tls_peer_private_key_version      = var.config_server_tls_peer_private_key_version
+  config_server_tls_peer_private_key_secret_uri   = var.config_server_tls_peer_private_key_secret_uri
+  logging_config                                  = var.logging_config
 
   depends_on = [
     module.self_signed_certificates,
