@@ -51,6 +51,7 @@ The module exposes the following configurable input variables.
 | `SECRET_KEY`              | `string`       | The secret key credential for your AWS account (will be used for deploying cloud resources and setting up Juju credentials).              | Yes                                     | `null`            |
 | `EKS_CLUSTER_NAME`        | `string`       | The name of the Elastic Kubernetes (EKS) cluster to create. Set to an empty string (`""`) if you do not wish to provision an EKS cluster. | No                                      | `"eks-cluster"`   |
 | `EKS_NODE_INSTANCE_TYPES` | `list(string)` | EC2 instance types used by the EKS managed node group. | No | `["m6i.xlarge"]` |
+| `EKS_NODE_SYSCTLS` | `map(string)` | Kernel settings for each EKS node. Set before creating the cluster. | No | `{}` |
 | `SETUP_LOCAL_HOST`        | `bool`         | Whether to set up the local host machine with Juju and deploy the Juju controller.                                                        | No                                      | `false`           |
 
 ---

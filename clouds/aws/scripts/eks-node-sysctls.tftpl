@@ -1,0 +1,15 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+--BOUNDARY
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+cat > /etc/sysctl.d/99-eks-node-sysctls.conf <<'CONF'
+%{ for name, value in sysctls ~}
+${name} = ${value}
+%{ endfor ~}
+CONF
+sysctl --system
+
+--BOUNDARY--
