@@ -219,28 +219,6 @@ variable "s3_secret_key" {
   default     = null
 }
 
-variable "config_server_tls_client_private_key" {
-  description = "config server tls client private key. Supply through TF_VAR_config_server_tls_client_private_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
-  type        = string
-  sensitive   = true
-  ephemeral   = true
-  default     = null
-}
-
-variable "config_server_tls_peer_private_key" {
-  description = "config server tls peer private key. Supply through TF_VAR_config_server_tls_peer_private_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
-  type        = string
-  sensitive   = true
-  ephemeral   = true
-  default     = null
-}
-
-variable "logging_config" {
-  description = "Logging configuration used by the MongoDB sharded-cluster module."
-  type        = string
-  default     = "<root>=INFO"
-}
-
 variable "s3_secret_version" {
   description = "0 creates no secret. 1 creates it. Increment to rotate. Ignored when s3_secret_uri is set."
   type        = number
@@ -263,6 +241,14 @@ variable "s3_secret_uri" {
   }
 }
 
+variable "config_server_tls_client_private_key" {
+  description = "config server tls client private key. Supply through TF_VAR_config_server_tls_client_private_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+  default     = null
+}
+
 variable "config_server_tls_client_private_key_version" {
   description = "0 creates no secret. 1 creates it. Increment to rotate. Ignored when config_server_tls_client_private_key_secret_uri is set."
   type        = number
@@ -280,6 +266,14 @@ variable "config_server_tls_client_private_key_secret_uri" {
   }
 }
 
+variable "config_server_tls_peer_private_key" {
+  description = "config server tls peer private key. Supply through TF_VAR_config_server_tls_peer_private_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
+  type        = string
+  sensitive   = true
+  ephemeral   = true
+  default     = null
+}
+
 variable "config_server_tls_peer_private_key_version" {
   description = "0 creates no secret. 1 creates it. Increment to rotate. Ignored when config_server_tls_peer_private_key_secret_uri is set."
   type        = number
@@ -295,4 +289,10 @@ variable "config_server_tls_peer_private_key_secret_uri" {
     condition     = var.config_server_tls_peer_private_key_secret_uri == null || startswith(coalesce(var.config_server_tls_peer_private_key_secret_uri, "-"), "secret:")
     error_message = "config_server_tls_peer_private_key_secret_uri must be a Juju secret URI starting with 'secret:'."
   }
+}
+
+variable "logging_config" {
+  description = "Logging configuration used by the MongoDB sharded-cluster module."
+  type        = string
+  default     = "<root>=INFO"
 }
