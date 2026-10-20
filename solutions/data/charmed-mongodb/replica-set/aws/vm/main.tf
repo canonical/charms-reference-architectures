@@ -102,11 +102,17 @@ module "mongodb_replica_set" {
     model_uuid   = juju_model.mongodb.uuid
     storage_type = "s3"
   }
-  s3_access_key          = var.s3_access_key
-  s3_secret_key          = var.s3_secret_key
-  tls_client_private_key = var.tls_client_private_key
-  tls_peer_private_key   = var.tls_peer_private_key
-  logging_config         = var.logging_config
+  s3_access_key                     = var.s3_access_key
+  s3_secret_key                     = var.s3_secret_key
+  s3_secret_version                 = var.s3_secret_version
+  s3_secret_uri                     = var.s3_secret_uri
+  tls_client_private_key            = var.tls_client_private_key
+  tls_client_private_key_version    = var.tls_client_private_key_version
+  tls_client_private_key_secret_uri = var.tls_client_private_key_secret_uri
+  tls_peer_private_key              = var.tls_peer_private_key
+  tls_peer_private_key_version      = var.tls_peer_private_key_version
+  tls_peer_private_key_secret_uri   = var.tls_peer_private_key_secret_uri
+  logging_config                    = var.logging_config
 
   client_certificates_integration = {
     kind     = "endpoint"

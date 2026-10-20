@@ -43,7 +43,7 @@ variable "vpc_id" {
 variable "network_spaces" {
   description = "CIDR of the existing AWS subnet assigned to the peers Juju space in the config-server model and every shard model."
   type = object({
-    peers_cidr   = optional(string, "10.0.2.0/24")
+    peers_cidr = optional(string, "10.0.2.0/24")
   })
   default = {}
 
@@ -316,31 +316,92 @@ variable "vault_kv_integration" {
 # Configuration variables
 
 variable "s3_access_key" {
-  description = "Optional S3 access key."
+  description = "s3 access key. Supply through TF_VAR_s3_access_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
   type        = string
   sensitive   = true
+  ephemeral   = true
   default     = null
 }
 
 variable "s3_secret_key" {
-  description = "Optional S3 secret key."
+  description = "s3 secret key. Supply through TF_VAR_s3_secret_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
   type        = string
   sensitive   = true
+  ephemeral   = true
   default     = null
 }
 
-variable "tls_client_private_key" {
-  description = "Optional PEM private key for config-server client TLS."
+variable "s3_secret_version" {
+  description = "0 creates no secret. 1 creates it. Increment to rotate. Ignored when s3_secret_uri is set."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.s3_secret_uri != null || var.s3_secret_version == 0 || var.s3_integrator != null
+    error_message = "s3_secret_version requires s3_integrator unless s3_secret_uri is set."
+  }
+}
+
+variable "s3_secret_uri" {
+  description = "URI of an existing Juju secret in the consuming application's model. Takes priority over credentials and s3_secret_version."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.s3_secret_uri == null || startswith(coalesce(var.s3_secret_uri, "-"), "secret:")
+    error_message = "s3_secret_uri must be a Juju secret URI starting with 'secret:'."
+  }
+}
+
+variable "config_server_tls_client_private_key" {
+  description = "config server tls client private key. Supply through TF_VAR_config_server_tls_client_private_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
   type        = string
   sensitive   = true
+  ephemeral   = true
   default     = null
 }
 
-variable "tls_peer_private_key" {
-  description = "Optional PEM private key for config-server peer TLS."
+variable "config_server_tls_client_private_key_version" {
+  description = "0 creates no secret. 1 creates it. Increment to rotate. Ignored when config_server_tls_client_private_key_secret_uri is set."
+  type        = number
+  default     = 0
+}
+
+variable "config_server_tls_client_private_key_secret_uri" {
+  description = "URI of an existing Juju secret in the consuming application's model. Takes priority over credentials and config_server_tls_client_private_key_version."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.config_server_tls_client_private_key_secret_uri == null || startswith(coalesce(var.config_server_tls_client_private_key_secret_uri, "-"), "secret:")
+    error_message = "config_server_tls_client_private_key_secret_uri must be a Juju secret URI starting with 'secret:'."
+  }
+}
+
+variable "config_server_tls_peer_private_key" {
+  description = "config server tls peer private key. Supply through TF_VAR_config_server_tls_peer_private_key at plan and apply. Warning: passing credentials through -var may expose them in shell history."
   type        = string
   sensitive   = true
+  ephemeral   = true
   default     = null
+}
+
+
+variable "config_server_tls_peer_private_key_version" {
+  description = "0 creates no secret. 1 creates it. Increment to rotate. Ignored when config_server_tls_peer_private_key_secret_uri is set."
+  type        = number
+  default     = 0
+}
+
+variable "config_server_tls_peer_private_key_secret_uri" {
+  description = "URI of an existing Juju secret in the consuming application's model. Takes priority over credentials and config_server_tls_peer_private_key_version."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.config_server_tls_peer_private_key_secret_uri == null || startswith(coalesce(var.config_server_tls_peer_private_key_secret_uri, "-"), "secret:")
+    error_message = "config_server_tls_peer_private_key_secret_uri must be a Juju secret URI starting with 'secret:'."
+  }
 }
 
 variable "logging_config" {
