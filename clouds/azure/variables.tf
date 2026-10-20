@@ -75,6 +75,12 @@ variable "AKS_NODE_VM_SIZE" {
   default     = "Standard_D16s_v3"
 }
 
+variable "AKS_SUBNET_NETWORK_CONTRIBUTOR" {
+  description = "Give AKS Network Contributor on its subnet, so it can create internal load balancers there."
+  type        = bool
+  default     = false
+}
+
 variable "SETUP_LOCAL_HOST" {
   description = "Flag to initialize the host machine with juju and other tools"
   type        = bool
