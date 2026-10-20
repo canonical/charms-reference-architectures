@@ -27,7 +27,7 @@ applications, where each application can have its own roles:
     machine, which forwards metrics, logs and dashboards to the COS Lite
     offers.
   - With `backups` set, `azure-storage-integrator` pointed at your container.
-- Each model in `extra_models` (none by default): the OpenSearch apps you place
+- Each model in `extra_models`: the OpenSearch apps you place
   there, and its own `opentelemetry-collector`.
 - An internal Azure Load Balancer for the OpenSearch Dashboards
   machines. With `dashboards_load_balancer.dns_name`, also a DNS name for it that
@@ -132,18 +132,6 @@ opensearch_charm = { profile = "production" }
 - Choose `constraints` before the first apply.
   Changing it later replaces the application.
 
-### Placing apps in other models
-
-Name the models in `extra_models`, and set `model` on `failover` or on an app:
-
-```hcl
-extra_models = ["opensearch-failover", "opensearch-data"]
-failover     = { model = "opensearch-failover" }
-apps         = [{ app_name = "data", config = { roles = "data" }, model = "opensearch-data" }]
-```
-
-OpenSearch Dashboards and the integrators deploy to the `opensearch` model.
-
 ### Connecting an application
 
 `get-credentials` returns a user and an index for one application.
@@ -163,8 +151,8 @@ Charms in the `opensearch` model can integrate with the `main`
 Open the `url` from `terraform output dashboards_load_balancer` and log in as
 `admin`, with the password from `juju run main/leader get-password -m opensearch`.
 
-- By default, the internal Azure Load Balancer spreads requests over the OpenSearch
-  OpenSearch Dashboards units and passes TLS through.
+- By default, the internal Azure Load Balancer spreads requests over the
+  OpenSearch Dashboards units.
 - `dashboards_load_balancer.dns_name`: a name for OpenSearch Dashboards that
   resolves inside the VNet, for example `dashboards.example.internal`.
 - `dashboards_load_balancer.key_vault_secret_id` and `key_vault_identity_id`:

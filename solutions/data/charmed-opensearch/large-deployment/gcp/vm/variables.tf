@@ -12,7 +12,7 @@ variable "apps" {
     allowed_cidrs      = optional(list(string), [])
     model              = optional(string)
   }))
-  default  = [{ app_name = "data", config = { roles = "data" } }]
+  default  = [{ app_name = "data", config = { roles = "data" }, model = "opensearch-data" }]
   nullable = false
 
   validation {
@@ -135,7 +135,7 @@ variable "excluded_subnets" {
 variable "extra_models" {
   description = "Names of extra models for OpenSearch apps."
   type        = list(string)
-  default     = []
+  default     = ["opensearch-failover", "opensearch-data"]
   nullable    = false
 
   validation {
@@ -159,7 +159,7 @@ variable "failover" {
     allowed_cidrs      = optional(list(string), [])
     model              = optional(string)
   })
-  default = {}
+  default = { model = "opensearch-failover" }
 
   validation {
     condition     = var.failover == null || alltrue([for cidr in try(var.failover.allowed_cidrs, []) : can(cidrhost(cidr, 0))])

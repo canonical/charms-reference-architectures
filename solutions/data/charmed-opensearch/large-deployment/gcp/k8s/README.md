@@ -27,7 +27,7 @@ applications, where each application can have its own roles:
   - `opentelemetry-collector-k8s`, which forwards metrics, logs and dashboards
     to the COS Lite offers.
   - With `backups` set, `gcs-integrator` pointed at your bucket.
-- Each model in `extra_models` (none by default): the OpenSearch apps you place
+- Each model in `extra_models`: the OpenSearch apps you place
   there, and its own `opentelemetry-collector-k8s`.
 
 Set `cos = null` to deploy without COS Lite and the collectors.
@@ -115,28 +115,6 @@ opensearch_charm = { profile = "production" }
   all roles, including `cluster_manager`).
 - Choose `constraints` before the first apply.
   Changing it later replaces the application.
-
-### Placing apps in other models
-
-Name the models in `extra_models`, and set `model` on `failover` or on an app.
-For example, three models in a `terraform.tfvars`:
-
-```hcl
-opensearch_model = "opensearch"
-extra_models     = ["opensearch-failover", "opensearch-data"]
-
-main     = { units = 3 }
-failover = { model = "opensearch-failover" }
-apps = [
-  { app_name = "data", config = { roles = "data" }, model = "opensearch-data" },
-]
-
-backups = { bucket = "my-opensearch-backups" }
-```
-
-OpenSearch Dashboards, Traefik and the integrators deploy to the `opensearch`
-model. With COS, each model gets its own collector, linked to the COS offers.
-`extra_model_uuids` outputs the UUIDs of the extra models.
 
 ### Connecting an application
 

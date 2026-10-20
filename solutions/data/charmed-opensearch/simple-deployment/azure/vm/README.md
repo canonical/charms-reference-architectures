@@ -124,8 +124,8 @@ Charms in the `opensearch` model can integrate with the `opensearch`
 Open the `url` from `terraform output dashboards_load_balancer` and log in as
 `admin`, with the password from `juju run opensearch/leader get-password -m opensearch`.
 
-- By default, the internal Azure Load Balancer spreads requests over the OpenSearch
-  OpenSearch Dashboards units and passes TLS through.
+- By default, the internal Azure Load Balancer spreads requests over the
+  OpenSearch Dashboards units.
 - `dashboards_load_balancer.dns_name`: a name for OpenSearch Dashboards that
   resolves inside the VNet, for example `dashboards.example.internal`.
 - `dashboards_load_balancer.key_vault_secret_id` and `key_vault_identity_id`:

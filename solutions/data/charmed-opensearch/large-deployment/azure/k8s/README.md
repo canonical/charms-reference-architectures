@@ -26,7 +26,7 @@ applications, where each application can have its own roles:
   - `opentelemetry-collector-k8s`, which forwards metrics, logs and dashboards
     to the COS Lite offers.
   - With `backups` set, `azure-storage-integrator` pointed at your container.
-- Each model in `extra_models` (none by default): the OpenSearch apps you place
+- Each model in `extra_models`: the OpenSearch apps you place
   there, and its own `opentelemetry-collector-k8s`.
 - A DaemonSet, `os-node-settings-<opensearch_model>` in `kube-system`, which sets
   the kernel settings OpenSearch needs on every AKS node.
@@ -115,18 +115,6 @@ opensearch_charm = { profile = "production" }
   all roles, including `cluster_manager`).
 - Choose `constraints` before the first apply.
   Changing it later replaces the application.
-
-### Placing apps in other models
-
-Name the models in `extra_models`, and set `model` on `failover` or on an app:
-
-```hcl
-extra_models = ["opensearch-failover", "opensearch-data"]
-failover     = { model = "opensearch-failover" }
-apps         = [{ app_name = "data", config = { roles = "data" }, model = "opensearch-data" }]
-```
-
-OpenSearch Dashboards, Traefik and the integrators deploy to the `opensearch` model.
 
 ### Connecting an application
 
