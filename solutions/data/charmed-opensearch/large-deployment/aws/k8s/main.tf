@@ -45,23 +45,21 @@ resource "juju_application" "traefik" {
 
   charm {
     name    = "traefik-k8s"
-    channel = "latest/stable"
+    channel = "latest/candidate"
   }
 
-  config = merge(
-    {
-      external_hostname        = "opensearch-dashboards.internal"
-      loadbalancer_annotations = local.internal_load_balancer
-    },
-    var.dashboards_traefik.config,
-  )
+  config = merge(local.traefik_frontend_config, var.dashboards_traefik.config)
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.dashboards_load_balancer_mode]
+  }
 }
 
 resource "juju_integration" "traefik_tls" {
   model_uuid = juju_model.opensearch[var.opensearch_model].uuid
 
   application {
-    name     = juju_application.traefik.name
+    name     = local.traefik_name
     endpoint = "certificates"
   }
 
@@ -103,7 +101,7 @@ resource "juju_integration" "cos" {
 }
 
 module "opensearch" {
-  source = "git::https://github.com/canonical/opensearch-operator//terraform/kubernetes/product/large_deployment?ref=DPE-10928-terraform-large-deployments"
+  source = "git::https://github.com/canonical/opensearch-operator//terraform/kubernetes/product/large_deployment?ref=2/edge"
 
   main = merge(var.main, {
     config     = merge(var.main.config, { profile = var.opensearch_charm.profile })
@@ -137,7 +135,7 @@ module "opensearch" {
 
   ingress_integration = {
     kind     = "endpoint"
-    name     = juju_application.traefik.name
+    name     = local.traefik_name
     endpoint = "ingress"
   }
 

@@ -15,7 +15,7 @@ output "cos" {
 }
 
 output "dashboards_load_balancer" {
-  description = "The NLB's AWS DNS name and the URL to open Dashboards."
+  description = "The NLB's AWS DNS name and the URL to open OpenSearch Dashboards."
   value = local.lb == null ? null : {
     address = aws_lb.dashboards[0].dns_name
     url     = "${local.lb_port == 443 ? "https" : "http"}://${coalesce(local.lb.dns_name, aws_lb.dashboards[0].dns_name)}"

@@ -13,7 +13,7 @@ variable "backups" {
 }
 
 variable "certificates_integration" {
-  description = "Optional offer of external TLS Provider for OpenSearch and Dashboards"
+  description = "Optional offer of an external TLS provider for OpenSearch and OpenSearch Dashboards."
   type = object({
     url = string
   })

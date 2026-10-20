@@ -1,35 +1,22 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-resource "terraform_data" "dashboards_units" {
-  count = local.lb == null ? 0 : 1
-  input = var.opensearch_dashboards.units
-}
-
-data "juju_application" "dashboards" {
-  count      = local.lb == null ? 0 : 1
-  model_uuid = juju_model.opensearch.uuid
-  name       = module.opensearch.app_names.opensearch_dashboards
-
-  depends_on = [terraform_data.dashboards_units]
+data "juju_machine" "dashboards" {
+  count                 = local.lb_target_count
+  model_uuid            = juju_model.opensearch.uuid
+  machine_id            = sort(tolist(local.dashboards_app.machines))[count.index]
+  wait_for_ip_addresses = ["private"]
 
   lifecycle {
-    postcondition {
-      condition     = length(self.machines) == var.opensearch_dashboards.units
-      error_message = "OpenSearch Dashboards doesn't have `opensearch_dashboards.units` machines yet. Apply again in a few minutes."
+    precondition {
+      condition     = length(local.dashboards_app.machines) == var.opensearch_dashboards.units
+      error_message = "OpenSearch Dashboards does not have the requested number of machines yet. Apply again in a few minutes."
     }
   }
 }
 
-data "juju_machine" "dashboards" {
-  count                 = local.lb_target_count
-  model_uuid            = juju_model.opensearch.uuid
-  machine_id            = sort(tolist(data.juju_application.dashboards[0].machines))[count.index]
-  wait_for_ip_addresses = ["private"]
-}
-
 data "aws_subnets" "vpc" {
-  count = local.lb == null ? 0 : 1
+  count = local.lb == null ? 0 : length(local.lb.subnet_ids) == 0 ? 1 : 0
 
   filter {
     name   = "vpc-id"
@@ -42,15 +29,47 @@ data "aws_subnet" "vpc" {
   id       = each.value
 }
 
+# Subnets chosen for the NLB in public mode; check they're in vpc_id.
+data "aws_subnet" "frontend" {
+  for_each = toset(try(local.lb.subnet_ids, []))
+  id       = each.value
+
+  lifecycle {
+    postcondition {
+      condition     = self.vpc_id == var.vpc_id
+      error_message = "OpenSearch Dashboards frontend subnets must belong to `vpc_id`."
+    }
+  }
+}
+
 resource "aws_lb" "dashboards" {
   count                            = local.lb == null ? 0 : 1
-  internal                         = true
+  internal                         = !local.lb_public
   load_balancer_type               = "network"
+  ip_address_type                  = "ipv4"
+  security_groups                  = local.lb_public ? [aws_security_group.dashboards_frontend[0].id] : null
   subnets                          = local.lb_subnet_ids
   enable_cross_zone_load_balancing = true
 
+  lifecycle {
+    precondition {
+      condition     = length(distinct([for subnet in data.aws_subnet.frontend : subnet.availability_zone])) == length(data.aws_subnet.frontend)
+      error_message = "Select at most one frontend subnet per availability zone."
+    }
+  }
+
   tags = {
     Name = "${var.opensearch_model}-dashboards"
+  }
+}
+
+# New target group whenever the OpenSearch Dashboards machines change.
+resource "terraform_data" "dashboards_backends" {
+  count            = local.lb == null ? 0 : 1
+  triggers_replace = [for machine in data.juju_machine.dashboards : machine.instance_id]
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -71,6 +90,7 @@ resource "aws_lb_target_group" "dashboards" {
 
   lifecycle {
     create_before_destroy = true
+    replace_triggered_by  = [terraform_data.dashboards_backends[0]]
   }
 }
 
@@ -89,6 +109,14 @@ resource "aws_lb_listener" "dashboards" {
   certificate_arn   = local.lb.certificate_arn
   ssl_policy        = local.lb_tls ? "ELBSecurityPolicy-TLS13-1-2-2021-06" : null
 
+  # Add the machines and open their firewall before sending traffic to them.
+  depends_on = [
+    aws_lb_target_group_attachment.dashboards,
+    aws_network_interface_sg_attachment.dashboards,
+    aws_vpc_security_group_ingress_rule.dashboards_backends,
+    aws_vpc_security_group_egress_rule.dashboards_backends,
+  ]
+
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.dashboards[0].arn
@@ -96,7 +124,7 @@ resource "aws_lb_listener" "dashboards" {
 }
 
 resource "aws_route53_zone" "dashboards" {
-  count = local.lb_dns_name == null ? 0 : 1
+  count = local.lb_dns_name == null || local.lb_public ? 0 : 1
   name  = local.lb_dns_name
 
   vpc {
@@ -105,7 +133,7 @@ resource "aws_route53_zone" "dashboards" {
 }
 
 resource "aws_route53_record" "dashboards" {
-  count   = local.lb_dns_name == null ? 0 : 1
+  count   = local.lb_dns_name == null || local.lb_public ? 0 : 1
   zone_id = aws_route53_zone.dashboards[0].zone_id
   name    = local.lb_dns_name
   type    = "A"

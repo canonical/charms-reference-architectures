@@ -76,7 +76,7 @@ resource "juju_integration" "cos" {
 }
 
 module "opensearch" {
-  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/simple_deployment?ref=7e51f6ff6ab2b1b2a3de9f39fd58b5b64eff622b"
+  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/simple_deployment?ref=2/edge"
 
   opensearch = merge(var.opensearch, {
     model_uuid = juju_model.opensearch.uuid

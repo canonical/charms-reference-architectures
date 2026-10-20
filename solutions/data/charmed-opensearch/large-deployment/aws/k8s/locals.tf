@@ -23,6 +23,7 @@ locals {
   } : {}
 
   internal_load_balancer = "service.beta.kubernetes.io/aws-load-balancer-internal=true,service.beta.kubernetes.io/aws-load-balancer-type=nlb"
+  public_load_balancer   = "service.beta.kubernetes.io/aws-load-balancer-internal=false,service.beta.kubernetes.io/aws-load-balancer-type=nlb"
   k8s_credential         = coalesce(var.k8s_credential, var.k8s_cloud)
   models                 = concat([var.opensearch_model], var.extra_models)
 

@@ -46,7 +46,7 @@ variable "backups" {
 }
 
 variable "certificates_integration" {
-  description = "Optional offer of external TLS Provider for OpenSearch and Dashboards"
+  description = "Optional offer of an external TLS provider for OpenSearch and OpenSearch Dashboards."
   type = object({
     url = string
   })
@@ -68,16 +68,40 @@ variable "cos" {
 }
 
 variable "dashboards_load_balancer" {
-  description = "Internal NLB in front of OpenSearch Dashboards."
+  description = "OpenSearch Dashboards load balancer. Private by default; `public = true` exposes it to `allowed_cidrs`."
   type = object({
     certificate_arn = optional(string)
     dns_name        = optional(string)
+    public          = optional(bool, false)
+    subnet_ids      = optional(set(string), [])
+    allowed_cidrs   = optional(set(string), [])
   })
   default = {}
 
   validation {
-    condition     = var.dashboards_load_balancer == null || length(var.opensearch_dashboards.allowed_cidrs) > 0
-    error_message = "`dashboards_load_balancer` needs `opensearch_dashboards.allowed_cidrs`."
+    condition     = var.dashboards_load_balancer == null ? true : var.dashboards_load_balancer.public || length(var.opensearch_dashboards.allowed_cidrs) > 0
+    error_message = "A private load balancer needs `opensearch_dashboards.allowed_cidrs` for backend access."
+  }
+
+  validation {
+    condition = var.dashboards_load_balancer == null ? true : (
+      !var.dashboards_load_balancer.public || try(trimspace(var.dashboards_load_balancer.certificate_arn) != "", false)
+    )
+    error_message = "Public OpenSearch Dashboards access requires a non-empty `certificate_arn`."
+  }
+
+  validation {
+    condition = var.dashboards_load_balancer == null ? true : (
+      var.dashboards_load_balancer.public ? length(var.dashboards_load_balancer.allowed_cidrs) > 0 : length(var.dashboards_load_balancer.allowed_cidrs) == 0
+    )
+    error_message = "Set at least one CIDR in `allowed_cidrs` with `public = true`, and none without it."
+  }
+
+  validation {
+    condition = var.dashboards_load_balancer == null ? true : (
+      !var.dashboards_load_balancer.public || length(var.dashboards_load_balancer.subnet_ids) > 0
+    )
+    error_message = "Public access requires explicit `subnet_ids` with routes to an internet gateway, one subnet per availability zone."
   }
 }
 
@@ -93,7 +117,7 @@ variable "data_integrator" {
 variable "excluded_subnets" {
   description = "CIDRs of subnets that machines must stay out of."
   type        = list(string)
-  default     = ["10.0.10.0/24", "10.0.11.0/24"] # excludes the public subnets
+  default     = ["10.0.10.0/24", "10.0.11.0/24"] # Excludes the public subnets.
 
   validation {
     condition     = alltrue([for cidr in var.excluded_subnets : can(cidrhost(cidr, 0))])

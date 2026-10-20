@@ -77,7 +77,7 @@ resource "juju_integration" "cos" {
 }
 
 module "opensearch" {
-  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/large_deployment?ref=DPE-10928-terraform-large-deployments"
+  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/large_deployment?ref=2/edge"
 
   main = merge(var.main, {
     config     = merge(var.main.config, { profile = var.opensearch_charm.profile })
