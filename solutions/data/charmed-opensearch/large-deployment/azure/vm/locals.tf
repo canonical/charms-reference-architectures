@@ -24,7 +24,8 @@ locals {
 
   dashboards_app = module.opensearch.models[juju_model.opensearch[var.opensearch_model].uuid].components.opensearch_dashboards
 
-  excluded_subnets = distinct(concat(var.excluded_subnets, local.lb == null ? [] : [local.lb.subnet_cidr]))
+  dashboards_channel = coalesce(var.opensearch_dashboards.channel, "2/${var.risk}")
+  excluded_subnets   = distinct(concat(var.excluded_subnets, local.lb == null ? [] : [local.lb.subnet_cidr]))
 
   # One excluded subnet per model and CIDR, keyed like "opensearch-data/10.5.0.0/24".
   excluded_subnets_by_model = merge([
@@ -51,4 +52,5 @@ locals {
 
   network_name           = split("/", var.network)[1]
   network_resource_group = split("/", var.network)[0]
+  opensearch_channel     = coalesce(var.opensearch_charm.channel, "2/${var.risk}")
 }

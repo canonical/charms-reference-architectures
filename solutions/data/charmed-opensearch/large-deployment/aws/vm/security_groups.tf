@@ -4,22 +4,6 @@
 # workaround to allow opensearch traffic across juju models
 # puts all opensearch machines in extra security group that
 # allows ingress on ports 9200 and 9300
-locals {
-  opensearch_units = merge(
-    { main = { model = var.opensearch_model, units = var.main.units } },
-    var.failover == null ? {} : { failover = { model = coalesce(var.failover.model, var.opensearch_model), units = var.failover.units } },
-    { for app in var.apps : app.app_name => { model = coalesce(app.model, var.opensearch_model), units = app.units } },
-  )
-
-  cross_model = length(distinct([for app in values(local.opensearch_units) : app.model])) > 1
-
-  opensearch_machines = local.cross_model ? {
-    for unit in flatten([
-      for app, settings in local.opensearch_units : [for index in range(settings.units) : { app = app, index = index }]
-    ]) : "${unit.app}/${unit.index}" => unit
-  } : {}
-}
-
 resource "terraform_data" "opensearch_units" {
   for_each = local.cross_model ? local.opensearch_units : {}
   input    = "${each.value.model}/${each.value.units}"

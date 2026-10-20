@@ -20,12 +20,13 @@ variable "certificates_integration" {
 }
 
 variable "cos" {
-  description = "Model name, storage sizes and Traefik config for COS Lite."
+  description = "Model name, risk, storage sizes and Traefik config for COS Lite."
   type = object({
     model                         = optional(string, "cos")
     grafana_storage_directives    = optional(map(string), { database = "1G" })
     loki_storage_directives       = optional(map(string), { active-index-directory = "1G", loki-chunks = "1G" })
     prometheus_storage_directives = optional(map(string), { database = "1G" })
+    risk                          = optional(string, "stable")
     traefik_config                = optional(map(string), {})
   })
   default = {}
@@ -46,7 +47,9 @@ variable "dashboards_traefik" {
 variable "data_integrator" {
   description = "`data-integrator` configuration options."
   type = object({
-    config = optional(map(string), {})
+    config   = optional(map(string), {})
+    channel  = optional(string, "latest/stable")
+    revision = optional(number)
   })
   default  = {}
   nullable = false
@@ -106,7 +109,7 @@ variable "opensearch" {
   description = "OpenSearch app."
   type = object({
     config             = optional(map(string), {})
-    channel            = optional(string, "2/edge")
+    channel            = optional(string)
     revision           = optional(number)
     resources          = optional(map(string), {})
     constraints        = optional(string)
@@ -121,7 +124,7 @@ variable "opensearch_dashboards" {
   description = "OpenSearch Dashboards app."
   type = object({
     config    = optional(map(string), {})
-    channel   = optional(string, "2/edge")
+    channel   = optional(string)
     revision  = optional(number)
     resources = optional(map(string), {})
     units     = optional(number, 3)
@@ -135,4 +138,15 @@ variable "opensearch_model" {
   description = "Name of the model created for OpenSearch."
   type        = string
   default     = "opensearch"
+}
+
+variable "risk" {
+  description = "Risk of the OpenSearch and OpenSearch Dashboards channels (`2/<risk>`) when their `channel` isn't set."
+  type        = string
+  default     = "edge"
+
+  validation {
+    condition     = contains(["edge", "beta", "candidate", "stable"], var.risk)
+    error_message = "`risk` must be edge, beta, candidate or stable."
+  }
 }

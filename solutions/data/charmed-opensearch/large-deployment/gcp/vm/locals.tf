@@ -23,6 +23,7 @@ locals {
   } : {}
 
   dashboards_app            = module.opensearch.models[juju_model.opensearch[var.opensearch_model].uuid].components.opensearch_dashboards
+  dashboards_channel        = coalesce(var.opensearch_dashboards.channel, "2/${var.risk}")
   dashboards_machine_zones  = try(data.external.dashboards_instances[0].result, {})
   dashboards_instance_names = sort(keys(local.dashboards_machine_zones))
   dashboards_instances = [
@@ -51,9 +52,10 @@ locals {
   lb_security_policy = local.lb_public ? (
     local.lb.security_policy != null ? local.lb.security_policy : one(google_compute_region_security_policy.dashboards[*].id)
   ) : null
-  lb_port           = local.lb_tls || var.opensearch_dashboards.tls ? 443 : 80
-  lb_tls            = try(local.lb.certificate_id, null) != null
-  model_constraints = trimspace("${length(local.excluded_subnets) == 0 ? "" : "spaces=alpha"} ${var.model_constraints}")
-  models            = concat([var.opensearch_model], var.extra_models)
-  zones             = data.google_compute_zones.available.names
+  lb_port            = local.lb_tls || var.opensearch_dashboards.tls ? 443 : 80
+  lb_tls             = try(local.lb.certificate_id, null) != null
+  model_constraints  = trimspace("${length(local.excluded_subnets) == 0 ? "" : "spaces=alpha"} ${var.model_constraints}")
+  models             = concat([var.opensearch_model], var.extra_models)
+  opensearch_channel = coalesce(var.opensearch_charm.channel, "2/${var.risk}")
+  zones              = data.google_compute_zones.available.names
 }

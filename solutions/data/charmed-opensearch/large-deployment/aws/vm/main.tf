@@ -24,6 +24,8 @@ module "cos" {
   count  = local.cos_enabled ? 1 : 0
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.3"
 
+  risk = var.cos.risk
+
   model = {
     name       = var.cos.model
     cloud      = { name = var.cos.cloud }
@@ -77,11 +79,11 @@ resource "juju_integration" "cos" {
 }
 
 module "opensearch" {
-  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/large_deployment?ref=2/edge"
+  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/large_deployment?ref=efa6b48ea34b4cf5c03e19bbe5cfbaa662e8508f"
 
   main = merge(var.main, {
     config     = merge(var.main.config, { profile = var.opensearch_charm.profile })
-    channel    = var.opensearch_charm.channel
+    channel    = local.opensearch_channel
     revision   = var.opensearch_charm.revision
     model_uuid = juju_model.opensearch[var.opensearch_model].uuid
     base       = local.base
@@ -90,7 +92,7 @@ module "opensearch" {
 
   failover = var.failover == null ? null : merge(var.failover, {
     config        = merge(var.failover.config, { profile = var.opensearch_charm.profile })
-    channel       = var.opensearch_charm.channel
+    channel       = local.opensearch_channel
     revision      = var.opensearch_charm.revision
     base          = local.base
     expose        = length(var.failover.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", var.failover.allowed_cidrs) }]
@@ -100,7 +102,7 @@ module "opensearch" {
 
   apps = [for app in var.apps : merge(app, {
     config        = merge(app.config, { profile = var.opensearch_charm.profile })
-    channel       = var.opensearch_charm.channel
+    channel       = local.opensearch_channel
     revision      = var.opensearch_charm.revision
     base          = local.base
     expose        = length(app.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", app.allowed_cidrs) }]
@@ -111,16 +113,17 @@ module "opensearch" {
   offered_endpoints = var.offered_endpoints
 
   opensearch_dashboards = merge(var.opensearch_dashboards, {
-    base   = local.base
-    expose = length(var.opensearch_dashboards.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", var.opensearch_dashboards.allowed_cidrs) }]
+    channel = local.dashboards_channel
+    base    = local.base
+    expose  = length(var.opensearch_dashboards.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", var.opensearch_dashboards.allowed_cidrs) }]
   })
 
   certificates_integration = local.certificates_integration
 
-  data_integrator = {
+  data_integrator = merge(var.data_integrator, {
     constraints = var.integrator_constraints
     config      = merge({ "index-name" = "opensearch-index", "extra-user-roles" = "admin" }, var.data_integrator.config)
-  }
+  })
 
   self_signed_certificates = {
     constraints = var.integrator_constraints

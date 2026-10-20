@@ -1,7 +1,7 @@
 # OpenSearch large deployment on Azure machines with OpenSearch Dashboards, TLS, COS Lite and Azure Storage backups
 
 Solution module that composes the
-[OpenSearch machine large deployment product module](https://github.com/canonical/opensearch-operator/tree/2/edge/terraform/machine/product/large_deployment)
+[OpenSearch machine large deployment product module](https://github.com/canonical/opensearch-operator/tree/efa6b48ea34b4cf5c03e19bbe5cfbaa662e8508f/terraform/machine/product/large_deployment)
 into a complete stack on Azure virtual machines. You provide a Kubernetes cloud for COS Lite, and
 optionally an Azure storage container for backups, and the module handles the rest.
 
@@ -236,3 +236,41 @@ updates the Juju secret that `azure-storage-integrator` reads.
 - COS Lite runs Grafana, Loki and Prometheus on 1G volumes by default. For
   anything beyond a demo, set the `cos` storage directives. See
   [customize storage options](https://documentation.ubuntu.com/observability/latest/how-to/configure-and-tune/customize-storage-options/).
+
+<!-- BEGIN_TF_DOCS -->
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| apps | Non-orchestrator OpenSearch apps. | <pre>list(object({<br/>    app_name           = string<br/>    config             = optional(map(string), {})<br/>    constraints        = optional(string, "cores=2 mem=8G")<br/>    units              = optional(number, 3)<br/>    storage_directives = optional(map(string), {})<br/>    allowed_cidrs      = optional(list(string), ["10.0.0.0/8"])<br/>    model              = optional(string)<br/>  }))</pre> | <pre>[<br/>  {<br/>    "app_name": "data",<br/>    "config": {<br/>      "roles": "data"<br/>    },<br/>    "model": "opensearch-data"<br/>  }<br/>]</pre> | no |
+| azure_storage_secret_key | Access key of the storage account in `backups`. | `string` | `null` | no |
+| azure_storage_secret_version | Version of the storage account key. Increment to rotate it. | `number` | `1` | no |
+| backups | Existing Azure storage container for backups. | <pre>object({<br/>    storage_account = string<br/>    container       = string<br/>    path            = optional(string, "opensearch-vm-ld")<br/>    config          = optional(map(string), {})<br/>  })</pre> | `null` | no |
+| certificates_integration | Optional offer of an external TLS provider for OpenSearch and OpenSearch Dashboards. | <pre>object({<br/>    url = string<br/>  })</pre> | `null` | no |
+| cos | Kubernetes cloud, credential, model name, risk, storage sizes and Traefik config for COS Lite. | <pre>object({<br/>    cloud                         = optional(string, "k8s")<br/>    credential                    = optional(string)<br/>    model                         = optional(string, "cos")<br/>    grafana_storage_directives    = optional(map(string), { database = "1G" })<br/>    loki_storage_directives       = optional(map(string), { active-index-directory = "1G", loki-chunks = "1G" })<br/>    prometheus_storage_directives = optional(map(string), { database = "1G" })<br/>    risk                          = optional(string, "stable")<br/>    traefik_config                = optional(map(string), {})<br/>  })</pre> | `{}` | no |
+| dashboards_load_balancer | OpenSearch Dashboards load balancer. Private by default; `public = true` exposes it to `allowed_cidrs`. | <pre>object({<br/>    public                = optional(bool, false)<br/>    allowed_cidrs         = optional(list(string), [])<br/>    subnet                = optional(string, "deployments-subnet")<br/>    subnet_cidr           = optional(string, "10.5.0.0/24")<br/>    dns_name              = optional(string)<br/>    key_vault_secret_id   = optional(string)<br/>    key_vault_identity_id = optional(string)<br/>    ca_certificate        = optional(string)<br/>  })</pre> | `{}` | no |
+| data_integrator | `data-integrator` configuration options. | <pre>object({<br/>    config   = optional(map(string), {})<br/>    channel  = optional(string, "latest/stable")<br/>    revision = optional(number)<br/>  })</pre> | `{}` | no |
+| excluded_subnets | CIDRs of subnets that machines must stay out of. | `list(string)` | `[]` | no |
+| extra_models | Names of extra models for OpenSearch apps. | `list(string)` | <pre>[<br/>  "opensearch-failover",<br/>  "opensearch-data"<br/>]</pre> | no |
+| failover | Failover orchestrator app. | <pre>object({<br/>    config             = optional(map(string), {})<br/>    constraints        = optional(string, "cores=2 mem=8G")<br/>    units              = optional(number, 3)<br/>    storage_directives = optional(map(string), {})<br/>    allowed_cidrs      = optional(list(string), ["10.0.0.0/8"])<br/>    model              = optional(string)<br/>  })</pre> | <pre>{<br/>  "model": "opensearch-failover"<br/>}</pre> | no |
+| integrator_constraints | Constraints for integrator apps. | `string` | `"cores=1 mem=2G"` | no |
+| main | Main orchestrator app. | <pre>object({<br/>    config             = optional(map(string), {})<br/>    constraints        = optional(string, "cores=2 mem=8G")<br/>    units              = optional(number, 3)<br/>    storage_directives = optional(map(string), {})<br/>    allowed_cidrs      = optional(list(string), ["10.0.0.0/8"])<br/>  })</pre> | `{}` | no |
+| model_constraints | Constraints of the OpenSearch models. | `string` | `"allocate-public-ip=false"` | no |
+| network | Existing Azure VNet for the OpenSearch models and the OpenSearch Dashboards load balancer, as `<resource group>/<name>`. | `string` | `"main-rg/main-vnet"` | no |
+| offered_endpoints | OpenSearch endpoints to offer to other models. | `list(string)` | `[]` | no |
+| opensearch_charm | OpenSearch charm for all OpenSearch apps. | <pre>object({<br/>    channel  = optional(string)<br/>    profile  = optional(string, "testing")<br/>    revision = optional(number)<br/>  })</pre> | `{}` | no |
+| opensearch_dashboards | OpenSearch Dashboards app. | <pre>object({<br/>    config        = optional(map(string), {})<br/>    channel       = optional(string)<br/>    revision      = optional(number)<br/>    constraints   = optional(string, "cores=2 mem=4G")<br/>    units         = optional(number, 3)<br/>    tls           = optional(bool, true)<br/>    allowed_cidrs = optional(list(string), ["10.0.0.0/8"])<br/>  })</pre> | `{}` | no |
+| opensearch_model | Name of the model created for OpenSearch. | `string` | `"opensearch"` | no |
+| risk | Risk of the OpenSearch and OpenSearch Dashboards channels (`2/<risk>`) when their `channel` isn't set. | `string` | `"edge"` | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| app_names | Names of the applications deployed by the OpenSearch product module. |
+| cos | COS Lite model UUID and offer URLs. null without COS. |
+| dashboards_load_balancer | The load balancer's address and the URL to open OpenSearch Dashboards. |
+| metadata | Metadata of the OpenSearch product deployment. |
+| models | Models by UUID, with the applications deployed in each. |
+| offers | Map of all offers made by the OpenSearch product module. |
+<!-- END_TF_DOCS -->

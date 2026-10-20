@@ -22,6 +22,9 @@ locals {
     send-remote-write           = module.cos[0].offers.prometheus_receive_remote_write.url
   } : {}
 
+  cross_model        = length(distinct([for app in values(local.opensearch_units) : app.model])) > 1
+  dashboards_channel = coalesce(var.opensearch_dashboards.channel, "2/${var.risk}")
+
   excluded_subnets_by_model = merge([
     for model in local.models : {
       for cidr in var.excluded_subnets : "${model}/${cidr}" => { model = model, cidr = cidr }
@@ -41,4 +44,17 @@ locals {
   lb_tls             = try(local.lb.certificate_arn, null) != null
   model_constraints  = trimspace("${var.model_constraints} ${length(var.excluded_subnets) == 0 ? "" : "spaces=alpha"}")
   models             = concat([var.opensearch_model], var.extra_models)
+  opensearch_channel = coalesce(var.opensearch_charm.channel, "2/${var.risk}")
+
+  opensearch_machines = local.cross_model ? {
+    for unit in flatten([
+      for app, settings in local.opensearch_units : [for index in range(settings.units) : { app = app, index = index }]
+    ]) : "${unit.app}/${unit.index}" => unit
+  } : {}
+
+  opensearch_units = merge(
+    { main = { model = var.opensearch_model, units = var.main.units } },
+    var.failover == null ? {} : { failover = { model = coalesce(var.failover.model, var.opensearch_model), units = var.failover.units } },
+    { for app in var.apps : app.app_name => { model = coalesce(app.model, var.opensearch_model), units = app.units } },
+  )
 }

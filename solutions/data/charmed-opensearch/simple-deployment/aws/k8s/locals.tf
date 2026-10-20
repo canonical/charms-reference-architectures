@@ -15,7 +15,15 @@ locals {
     send-remote-write           = module.cos[0].offers.prometheus_receive_remote_write.url
   } : {}
 
+  dashboards_annotations = (
+    var.dashboards_load_balancer.public
+    ? "${local.public_load_balancer},service.beta.kubernetes.io/load-balancer-source-ranges=${one(var.dashboards_load_balancer.allowed_cidrs)}"
+    : local.internal_load_balancer
+  )
+
+  dashboards_channel     = coalesce(var.opensearch_dashboards.channel, "2/${var.risk}")
   internal_load_balancer = "service.beta.kubernetes.io/aws-load-balancer-internal=true,service.beta.kubernetes.io/aws-load-balancer-type=nlb"
+  opensearch_channel     = coalesce(var.opensearch.channel, "2/${var.risk}")
   public_load_balancer   = "service.beta.kubernetes.io/aws-load-balancer-internal=false,service.beta.kubernetes.io/aws-load-balancer-type=nlb"
   k8s_credential         = coalesce(var.k8s_credential, var.k8s_cloud)
 
@@ -24,4 +32,14 @@ locals {
     var.certificates_integration != null ? local.certificates_integration :
     { kind = "endpoint", name = module.opensearch.app_names.self_signed_certificates, endpoint = "certificates", url = null }
   )
+
+  traefik_frontend_config = merge(
+    {
+      loadbalancer_annotations = local.dashboards_annotations
+      "csr-subject-attributes" = "CN=opensearch-dashboards"
+    },
+    var.dashboards_load_balancer.hostname == null ? {} : { external_hostname = var.dashboards_load_balancer.hostname },
+  )
+
+  traefik_name = trimprefix(juju_application.traefik.id, "${juju_application.traefik.model_uuid}:")
 }

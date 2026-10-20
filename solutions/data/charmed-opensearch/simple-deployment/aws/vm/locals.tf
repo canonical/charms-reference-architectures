@@ -18,6 +18,7 @@ locals {
 
   dashboards_app = module.opensearch.models[juju_model.opensearch.uuid].components.opensearch_dashboards
 
+  dashboards_channel = coalesce(var.opensearch_dashboards.channel, "2/${var.risk}")
   lb                 = var.dashboards_load_balancer
   lb_dns_name        = try(local.lb.dns_name, null)
   lb_public          = try(local.lb.public, false)
@@ -28,4 +29,5 @@ locals {
   lb_target_count    = local.lb == null ? 0 : var.opensearch_dashboards.units
   lb_tls             = try(local.lb.certificate_arn, null) != null
   model_constraints  = trimspace("${var.model_constraints} ${length(var.excluded_subnets) == 0 ? "" : "spaces=alpha"}")
+  opensearch_channel = coalesce(var.opensearch.channel, "2/${var.risk}")
 }

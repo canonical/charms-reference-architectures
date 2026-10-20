@@ -17,6 +17,7 @@ locals {
   } : {}
 
   dashboards_app            = module.opensearch.models[juju_model.opensearch.uuid].components.opensearch_dashboards
+  dashboards_channel        = coalesce(var.opensearch_dashboards.channel, "2/${var.risk}")
   dashboards_machine_zones  = try(data.external.dashboards_instances[0].result, {})
   dashboards_instance_names = sort(keys(local.dashboards_machine_zones))
   dashboards_instances = [
@@ -38,8 +39,9 @@ locals {
   lb_security_policy = local.lb_public ? (
     local.lb.security_policy != null ? local.lb.security_policy : one(google_compute_region_security_policy.dashboards[*].id)
   ) : null
-  lb_port           = local.lb_tls || var.opensearch_dashboards.tls ? 443 : 80
-  lb_tls            = try(local.lb.certificate_id, null) != null
-  model_constraints = trimspace("${length(local.excluded_subnets) == 0 ? "" : "spaces=alpha"} ${var.model_constraints}")
-  zones             = data.google_compute_zones.available.names
+  lb_port            = local.lb_tls || var.opensearch_dashboards.tls ? 443 : 80
+  lb_tls             = try(local.lb.certificate_id, null) != null
+  model_constraints  = trimspace("${length(local.excluded_subnets) == 0 ? "" : "spaces=alpha"} ${var.model_constraints}")
+  opensearch_channel = coalesce(var.opensearch.channel, "2/${var.risk}")
+  zones              = data.google_compute_zones.available.names
 }

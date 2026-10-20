@@ -14,6 +14,8 @@ module "cos" {
   count  = local.cos_enabled ? 1 : 0
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.3"
 
+  risk = var.cos.risk
+
   model = {
     name       = var.cos.model
     cloud      = { name = var.k8s_cloud }
@@ -100,15 +102,16 @@ resource "juju_integration" "cos" {
 }
 
 module "opensearch" {
-  source = "git::https://github.com/canonical/opensearch-operator//terraform/kubernetes/product/simple_deployment?ref=2/edge"
+  source = "git::https://github.com/canonical/opensearch-operator//terraform/kubernetes/product/simple_deployment?ref=efa6b48ea34b4cf5c03e19bbe5cfbaa662e8508f"
 
   opensearch = merge(var.opensearch, {
+    channel    = local.opensearch_channel
     model_uuid = juju_model.opensearch.uuid
   })
 
   offered_endpoints = var.offered_endpoints
 
-  opensearch_dashboards = var.opensearch_dashboards
+  opensearch_dashboards = merge(var.opensearch_dashboards, { channel = local.dashboards_channel })
 
   ingress_integration = {
     kind     = "endpoint"
@@ -118,9 +121,9 @@ module "opensearch" {
 
   certificates_integration = local.certificates_integration
 
-  data_integrator = {
+  data_integrator = merge(var.data_integrator, {
     config = merge({ "index-name" = "opensearch-index", "extra-user-roles" = "admin" }, var.data_integrator.config)
-  }
+  })
 
   metrics_endpoint_integration = local.cos_enabled ? {
     kind     = "endpoint"

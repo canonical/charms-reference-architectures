@@ -27,12 +27,25 @@ output "metadata" {
   value       = module.opensearch.metadata
 }
 
+output "models" {
+  description = "Models by UUID, with the applications deployed in each."
+  value = merge(
+    {
+      (juju_model.opensearch.uuid) = {
+        model_uuid = juju_model.opensearch.uuid
+        components = merge(
+          module.opensearch.models[juju_model.opensearch.uuid].components,
+          local.cos_enabled ? { opentelemetry_collector = juju_application.opentelemetry_collector[0] } : {},
+        )
+      }
+    },
+    local.cos_enabled ? {
+      (module.cos[0].model_uuid) = { model_uuid = module.cos[0].model_uuid, components = module.cos[0].components }
+    } : {},
+  )
+}
+
 output "offers" {
   description = "Map of all offers made by the OpenSearch product module."
   value       = module.opensearch.offers
-}
-
-output "opensearch_model_uuid" {
-  description = "UUID of the OpenSearch model."
-  value       = juju_model.opensearch.uuid
 }

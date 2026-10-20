@@ -1,7 +1,7 @@
 # OpenSearch on Kubernetes on AWS with OpenSearch Dashboards, TLS, COS Lite and S3 backups
 
 Solution module that composes the
-[OpenSearch Kubernetes simple deployment product module](https://github.com/canonical/opensearch-operator/tree/2/edge/terraform/kubernetes/product/simple_deployment)
+[OpenSearch Kubernetes simple deployment product module](https://github.com/canonical/opensearch-operator/tree/efa6b48ea34b4cf5c03e19bbe5cfbaa662e8508f/terraform/kubernetes/product/simple_deployment)
 into a complete stack on EKS. You provide the EKS cluster, and optionally an S3
 bucket for backups, and the module handles the rest.
 
@@ -148,3 +148,36 @@ Juju secret that `s3-integrator` reads.
 - COS Lite runs Grafana, Loki and Prometheus on 1G volumes by default. For
   anything beyond a demo, set the `cos` storage directives. See
   [customize storage options](https://documentation.ubuntu.com/observability/latest/how-to/configure-and-tune/customize-storage-options/).
+
+<!-- BEGIN_TF_DOCS -->
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| backups | Existing S3 bucket for backups. | <pre>object({<br/>    bucket = string<br/>    region = string<br/>    path   = optional(string, "opensearch-k8s")<br/>    config = optional(map(string), {})<br/>  })</pre> | `null` | no |
+| certificates_integration | Optional offer of an external TLS provider for OpenSearch and OpenSearch Dashboards. | <pre>object({<br/>    url = string<br/>  })</pre> | `null` | no |
+| cos | Model name, risk, storage sizes and Traefik config for COS Lite. | <pre>object({<br/>    model                         = optional(string, "cos")<br/>    grafana_storage_directives    = optional(map(string), { database = "1G" })<br/>    loki_storage_directives       = optional(map(string), { active-index-directory = "1G", loki-chunks = "1G" })<br/>    prometheus_storage_directives = optional(map(string), { database = "1G" })<br/>    risk                          = optional(string, "stable")<br/>    traefik_config                = optional(map(string), {})<br/>  })</pre> | `{}` | no |
+| dashboards_load_balancer | OpenSearch Dashboards load balancer. Private by default; `public = true` exposes it to `allowed_cidrs`. | <pre>object({<br/>    public        = optional(bool, false)<br/>    allowed_cidrs = optional(set(string), [])<br/>    hostname      = optional(string)<br/>  })</pre> | `{}` | no |
+| dashboards_traefik | Config for Traefik fronting OpenSearch Dashboards. | <pre>object({<br/>    config = optional(map(string), {})<br/>    certificates_integration = optional(object({<br/>      url = string<br/>    }))<br/>  })</pre> | `{}` | no |
+| data_integrator | `data-integrator` configuration options. | <pre>object({<br/>    config   = optional(map(string), {})<br/>    channel  = optional(string, "latest/stable")<br/>    revision = optional(number)<br/>  })</pre> | `{}` | no |
+| k8s_cloud | Kubernetes cloud for both models. | `string` | `"k8s"` | no |
+| k8s_credential | Credential for `k8s_cloud`. | `string` | `null` | no |
+| offered_endpoints | OpenSearch endpoints to offer to other models. | `list(string)` | `[]` | no |
+| opensearch | OpenSearch app. | <pre>object({<br/>    config             = optional(map(string), {})<br/>    channel            = optional(string)<br/>    revision           = optional(number)<br/>    resources          = optional(map(string), {})<br/>    constraints        = optional(string)<br/>    units              = optional(number, 3)<br/>    storage_directives = optional(map(string), { opensearch-data = "20G" })<br/>  })</pre> | `{}` | no |
+| opensearch_dashboards | OpenSearch Dashboards app. | <pre>object({<br/>    config    = optional(map(string), {})<br/>    channel   = optional(string)<br/>    revision  = optional(number)<br/>    resources = optional(map(string), {})<br/>    units     = optional(number, 3)<br/>    tls       = optional(bool, true)<br/>  })</pre> | `{}` | no |
+| opensearch_model | Name of the model created for OpenSearch. | `string` | `"opensearch"` | no |
+| risk | Risk of the OpenSearch and OpenSearch Dashboards channels (`2/<risk>`) when their `channel` isn't set. | `string` | `"edge"` | no |
+| s3_access_key | S3 access key for `backups`. | `string` | `null` | no |
+| s3_secret_key | S3 secret key for `backups`. | `string` | `null` | no |
+| s3_secret_version | Version of the S3 keys. Increment to rotate them. | `number` | `1` | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| app_names | Names of the applications deployed by the OpenSearch product module. |
+| cos | COS Lite model UUID and offer URLs. null without COS. |
+| metadata | Metadata of the OpenSearch product deployment. |
+| models | Models by UUID, with the applications deployed in each. |
+| offers | Map of all offers made by the OpenSearch product module. |
+<!-- END_TF_DOCS -->

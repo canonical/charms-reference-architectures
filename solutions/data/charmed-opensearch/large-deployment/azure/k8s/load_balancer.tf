@@ -34,23 +34,3 @@ variable "dashboards_load_balancer" {
 resource "terraform_data" "dashboards_load_balancer_mode" {
   triggers_replace = var.dashboards_load_balancer.public
 }
-
-locals {
-  traefik_name = trimprefix(juju_application.traefik.id, "${juju_application.traefik.model_uuid}:")
-}
-
-locals {
-  dashboards_annotations = (
-    var.dashboards_load_balancer.public
-    ? "${local.public_load_balancer},service.beta.kubernetes.io/load-balancer-source-ranges=${one(var.dashboards_load_balancer.allowed_cidrs)}"
-    : local.internal_load_balancer
-  )
-
-  traefik_frontend_config = merge(
-    {
-      loadbalancer_annotations = local.dashboards_annotations
-      "csr-subject-attributes" = "CN=opensearch-dashboards"
-    },
-    var.dashboards_load_balancer.hostname == null ? {} : { external_hostname = var.dashboards_load_balancer.hostname },
-  )
-}

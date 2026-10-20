@@ -43,6 +43,8 @@ module "cos" {
   count  = local.cos_enabled ? 1 : 0
   source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.3"
 
+  risk = var.cos.risk
+
   model = {
     name       = var.cos.model
     cloud      = { name = var.cos.cloud }
@@ -96,9 +98,10 @@ resource "juju_integration" "cos" {
 }
 
 module "opensearch" {
-  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/simple_deployment?ref=2/edge"
+  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/simple_deployment?ref=efa6b48ea34b4cf5c03e19bbe5cfbaa662e8508f"
 
   opensearch = merge(var.opensearch, {
+    channel    = local.opensearch_channel
     model_uuid = juju_model.opensearch.uuid
     base       = local.base
     expose     = length(var.opensearch.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", var.opensearch.allowed_cidrs) }]
@@ -107,6 +110,7 @@ module "opensearch" {
   offered_endpoints = var.offered_endpoints
 
   opensearch_dashboards = merge(var.opensearch_dashboards, {
+    channel           = local.dashboards_channel
     base              = local.base
     constraints       = local.lb == null ? var.opensearch_dashboards.constraints : "${var.opensearch_dashboards.constraints} spaces=${juju_space.dashboards[0].name}"
     endpoint_bindings = local.lb == null ? [] : [{ space = juju_space.dashboards[0].name }]
@@ -115,10 +119,10 @@ module "opensearch" {
 
   certificates_integration = local.certificates_integration
 
-  data_integrator = {
+  data_integrator = merge(var.data_integrator, {
     constraints = var.integrator_constraints
     config      = merge({ "index-name" = "opensearch-index", "extra-user-roles" = "admin" }, var.data_integrator.config)
-  }
+  })
 
   self_signed_certificates = {
     constraints = var.integrator_constraints

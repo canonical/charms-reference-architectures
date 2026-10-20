@@ -48,22 +48,9 @@ variable "dashboards_load_balancer" {
   }
 }
 
-locals {
-  public_frontend = var.dashboards_load_balancer.public
-  frontend_topology = jsonencode(local.public_frontend ? {
-    mode    = "public"
-    network = var.network
-    name    = var.dashboards_load_balancer.name
-  } : { mode = "private", network = null, name = null })
-}
-
 # Switching public/private replaces Traefik; the firewall rules exist before it and outlive the old one.
 resource "terraform_data" "frontend_topology" {
   triggers_replace = local.frontend_topology
-}
-
-locals {
-  traefik_name = trimprefix(juju_application.traefik.id, "${juju_application.traefik.model_uuid}:")
 }
 
 resource "google_compute_address" "frontend" {

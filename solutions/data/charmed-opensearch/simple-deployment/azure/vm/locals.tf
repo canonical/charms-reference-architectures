@@ -18,7 +18,8 @@ locals {
 
   dashboards_app = module.opensearch.models[juju_model.opensearch.uuid].components.opensearch_dashboards
 
-  excluded_subnets = concat(var.excluded_subnets, local.lb == null ? [] : [local.lb.subnet_cidr])
+  dashboards_channel = coalesce(var.opensearch_dashboards.channel, "2/${var.risk}")
+  excluded_subnets   = concat(var.excluded_subnets, local.lb == null ? [] : [local.lb.subnet_cidr])
 
   lb                = var.dashboards_load_balancer
   lb_address        = local.lb_public ? one(azurerm_public_ip.dashboards[*].ip_address) : (local.lb_tls ? cidrhost(local.lb.subnet_cidr, -2) : one(azurerm_lb.dashboards[*].private_ip_address))
@@ -37,4 +38,5 @@ locals {
 
   network_name           = split("/", var.network)[1]
   network_resource_group = split("/", var.network)[0]
+  opensearch_channel     = coalesce(var.opensearch.channel, "2/${var.risk}")
 }
