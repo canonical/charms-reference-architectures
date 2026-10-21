@@ -22,6 +22,7 @@ locals {
   lb                 = var.dashboards_load_balancer
   lb_dns_name        = try(local.lb.dns_name, null)
   lb_public          = try(local.lb.public, false)
+  lb_passthrough     = !local.lb_tls && var.opensearch_dashboards.tls
   lb_port            = local.lb_tls || var.opensearch_dashboards.tls ? 443 : 80
   lb_subnet_ids      = length(try(local.lb.subnet_ids, [])) > 0 ? sort(tolist(local.lb.subnet_ids)) : [for ids in values(local.lb_subnets_by_zone) : sort(ids)[0]]
   lb_subnets         = [for subnet in data.aws_subnet.vpc : subnet if !contains(var.excluded_subnets, subnet.cidr_block)]

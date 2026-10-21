@@ -81,7 +81,7 @@ resource "aws_lb_target_group" "dashboards" {
   vpc_id      = var.vpc_id
 
   stickiness {
-    enabled = !local.lb_tls
+    enabled = local.lb_passthrough
     type    = "source_ip"
   }
 

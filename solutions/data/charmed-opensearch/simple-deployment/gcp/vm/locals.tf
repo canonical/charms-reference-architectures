@@ -39,6 +39,7 @@ locals {
   lb_security_policy = local.lb_public ? (
     local.lb.security_policy != null ? local.lb.security_policy : one(google_compute_region_security_policy.dashboards[*].id)
   ) : null
+  lb_passthrough     = !local.lb_tls && var.opensearch_dashboards.tls
   lb_port            = local.lb_tls || var.opensearch_dashboards.tls ? 443 : 80
   lb_tls             = try(local.lb.certificate_id, null) != null
   model_constraints  = trimspace("${length(local.excluded_subnets) == 0 ? "" : "spaces=alpha"} ${var.model_constraints}")

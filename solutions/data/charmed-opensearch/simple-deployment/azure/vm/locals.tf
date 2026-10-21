@@ -28,6 +28,7 @@ locals {
   lb_dns_name       = try(local.lb.dns_name, null)
   lb_location       = one(data.azurerm_virtual_network.dashboards[*].location)
   lb_machine_ips    = data.juju_machine.dashboards[*].ip_addresses[0]
+  lb_passthrough    = !local.lb_tls && var.opensearch_dashboards.tls
   lb_port           = local.lb_tls || var.opensearch_dashboards.tls ? 443 : 80
   lb_public         = try(local.lb.public, false)
   lb_reencrypt      = local.lb_tls && var.opensearch_dashboards.tls
