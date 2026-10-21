@@ -1,0 +1,151 @@
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+resource "juju_model" "opensearch" {
+  for_each    = toset(local.models)
+  name        = each.value
+  constraints = local.model_constraints == "" ? null : local.model_constraints
+}
+
+resource "juju_space" "excluded" {
+  for_each   = length(var.excluded_subnets) == 0 ? toset([]) : toset(local.models)
+  model_uuid = juju_model.opensearch[each.key].uuid
+  name       = "excluded"
+}
+
+resource "juju_subnet" "excluded" {
+  for_each   = local.excluded_subnets_by_model
+  model_uuid = juju_model.opensearch[each.value.model].uuid
+  cidr       = each.value.cidr
+  space_name = juju_space.excluded[each.value.model].name
+}
+
+module "cos" {
+  count  = local.cos_enabled ? 1 : 0
+  source = "git::https://github.com/canonical/observability-stack//terraform/cos-lite?ref=tf-cos-lite-3.0.3"
+
+  risk = var.cos.risk
+
+  model = {
+    name       = var.cos.model
+    cloud      = { name = var.cos.cloud }
+    credential = coalesce(var.cos.credential, var.cos.cloud)
+  }
+
+  traefik = {
+    config = merge(
+      { loadbalancer_annotations = "service.beta.kubernetes.io/aws-load-balancer-internal=true,service.beta.kubernetes.io/aws-load-balancer-type=nlb" },
+      var.cos.traefik_config,
+    )
+  }
+
+  grafana = {
+    storage_directives = var.cos.grafana_storage_directives
+  }
+
+  loki = {
+    storage_directives = var.cos.loki_storage_directives
+  }
+
+  prometheus = {
+    storage_directives = var.cos.prometheus_storage_directives
+  }
+}
+
+resource "juju_application" "opentelemetry_collector" {
+  for_each   = local.cos_enabled ? toset(local.models) : toset([])
+  name       = "opentelemetry-collector"
+  model_uuid = juju_model.opensearch[each.key].uuid
+
+  charm {
+    name    = "opentelemetry-collector"
+    channel = "0.130/stable"
+    base    = local.base
+  }
+}
+
+resource "juju_integration" "cos" {
+  for_each   = local.cos_links
+  model_uuid = juju_model.opensearch[each.value.model].uuid
+
+  application {
+    name     = juju_application.opentelemetry_collector[each.value.model].name
+    endpoint = each.value.endpoint
+  }
+
+  application {
+    offer_url = each.value.url
+  }
+}
+
+module "opensearch" {
+  source = "git::https://github.com/canonical/opensearch-operator//terraform/machine/product/large_deployment?ref=efa6b48ea34b4cf5c03e19bbe5cfbaa662e8508f"
+
+  main = merge(var.main, {
+    config     = merge(var.main.config, { profile = var.opensearch_charm.profile })
+    channel    = local.opensearch_channel
+    revision   = var.opensearch_charm.revision
+    model_uuid = juju_model.opensearch[var.opensearch_model].uuid
+    base       = local.base
+    expose     = length(var.main.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", var.main.allowed_cidrs) }]
+  })
+
+  failover = var.failover == null ? null : merge(var.failover, {
+    config        = merge(var.failover.config, { profile = var.opensearch_charm.profile })
+    channel       = local.opensearch_channel
+    revision      = var.opensearch_charm.revision
+    base          = local.base
+    expose        = length(var.failover.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", var.failover.allowed_cidrs) }]
+    model_uuid    = var.failover.model == null ? null : juju_model.opensearch[var.failover.model].uuid
+    cos_collector = var.failover.model == null || !local.cos_enabled ? null : juju_application.opentelemetry_collector[var.failover.model].name
+  })
+
+  apps = [for app in var.apps : merge(app, {
+    config        = merge(app.config, { profile = var.opensearch_charm.profile })
+    channel       = local.opensearch_channel
+    revision      = var.opensearch_charm.revision
+    base          = local.base
+    expose        = length(app.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", app.allowed_cidrs) }]
+    model_uuid    = app.model == null ? null : juju_model.opensearch[app.model].uuid
+    cos_collector = app.model == null || !local.cos_enabled ? null : juju_application.opentelemetry_collector[app.model].name
+  })]
+
+  offered_endpoints = var.offered_endpoints
+
+  opensearch_dashboards = merge(var.opensearch_dashboards, {
+    channel = local.dashboards_channel
+    base    = local.base
+    expose  = length(var.opensearch_dashboards.allowed_cidrs) == 0 ? [] : [{ cidrs = join(",", var.opensearch_dashboards.allowed_cidrs) }]
+  })
+
+  certificates_integration = local.certificates_integration
+
+  data_integrator = merge(var.data_integrator, {
+    constraints = var.integrator_constraints
+    config      = merge({ "index-name" = "opensearch-index", "extra-user-roles" = "admin" }, var.data_integrator.config)
+  })
+
+  self_signed_certificates = {
+    constraints = var.integrator_constraints
+  }
+
+  cos_agent_integration = local.cos_enabled ? {
+    name     = juju_application.opentelemetry_collector[var.opensearch_model].name
+    endpoint = "cos-agent"
+  } : null
+
+  backups = var.backups == null ? null : {
+    constraints = var.integrator_constraints
+    config = merge({
+      bucket   = var.backups.bucket
+      path     = var.backups.path
+      region   = var.backups.region
+      endpoint = "https://s3.${var.backups.region}.amazonaws.com"
+    }, var.backups.config)
+  }
+  s3_access_key     = var.s3_access_key
+  s3_secret_key     = var.s3_secret_key
+  s3_secret_version = var.backups == null ? 0 : var.s3_secret_version
+
+  depends_on = [juju_subnet.excluded]
+}

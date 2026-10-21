@@ -107,6 +107,14 @@ resource "google_container_node_pool" "gke_nodes" {
   node_config {
     machine_type    = var.GKE_NODE_MACHINE_TYPE
     service_account = google_service_account.gke_nodes[0].email
+
+    dynamic "linux_node_config" {
+      for_each = length(var.GKE_NODE_SYSCTLS) == 0 ? [] : [1]
+
+      content {
+        sysctls = var.GKE_NODE_SYSCTLS
+      }
+    }
   }
 
   depends_on = [google_project_iam_member.gke_nodes]

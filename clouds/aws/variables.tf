@@ -73,6 +73,19 @@ variable "EKS_NODE_INSTANCE_TYPES" {
   }
 }
 
+variable "EKS_NODE_SYSCTLS" {
+  description = "Kernel settings to apply on each EKS node at boot, e.g. { \"vm.swappiness\" = \"0\" }."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.EKS_NODE_SYSCTLS : can(regex("^[a-z0-9_.]+$", k)) && can(regex("^[A-Za-z0-9_. -]+$", v))
+    ])
+    error_message = "EKS_NODE_SYSCTLS has an invalid setting name or value."
+  }
+}
+
 variable "PROVISION_BASTION" {
   description = "Flag to provision the bastion host"
   type        = bool

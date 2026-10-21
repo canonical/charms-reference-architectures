@@ -84,6 +84,12 @@ variable "GKE_NODE_MACHINE_TYPE" {
   default     = "n2-standard-16"
 }
 
+variable "GKE_NODE_SYSCTLS" {
+  description = "Kernel settings for each GKE node, e.g. { \"vm.swappiness\" = \"0\" }."
+  type        = map(string)
+  default     = {}
+}
+
 variable "SETUP_LOCAL_HOST" {
   description = "Flag to initialize the host machine with juju and other tools"
   type        = bool

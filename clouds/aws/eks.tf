@@ -92,6 +92,12 @@ resource "aws_iam_role_policy_attachment" "nodes_AmazonEC2ContainerRegistryPullO
   role       = aws_iam_role.eks_nodes[count.index].name
 }
 
+resource "aws_launch_template" "eks_nodes" {
+  count       = var.EKS_CLUSTER_NAME != "" && length(var.EKS_NODE_SYSCTLS) > 0 ? 1 : 0
+  name_prefix = "${var.EKS_CLUSTER_NAME}-nodes-"
+  user_data   = base64encode(templatefile("scripts/eks-node-sysctls.tftpl", { sysctls = var.EKS_NODE_SYSCTLS }))
+}
+
 resource "aws_eks_node_group" "workers" {
   count = var.EKS_CLUSTER_NAME != "" ? 1 : 0
 
@@ -105,6 +111,14 @@ resource "aws_eks_node_group" "workers" {
   ]
 
   instance_types = var.EKS_NODE_INSTANCE_TYPES
+
+  dynamic "launch_template" {
+    for_each = aws_launch_template.eks_nodes
+    content {
+      id      = launch_template.value.id
+      version = launch_template.value.latest_version
+    }
+  }
 
   scaling_config {
     desired_size = 3

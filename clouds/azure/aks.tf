@@ -35,3 +35,11 @@ resource "azurerm_kubernetes_cluster" "aks" {
     dns_service_ip = "10.0.2.10"
   }
 }
+
+resource "azurerm_role_assignment" "aks_role_assignment" {
+  count                = var.AKS_CLUSTER_NAME != "" && var.AKS_SUBNET_NETWORK_CONTRIBUTOR ? 1 : 0
+  scope                = azurerm_subnet.deployments_subnet.id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_kubernetes_cluster.aks[0].identity[0].principal_id
+  principal_type       = "ServicePrincipal"
+}
