@@ -80,6 +80,11 @@ resource "aws_lb_target_group" "dashboards" {
   target_type = "instance"
   vpc_id      = var.vpc_id
 
+  stickiness {
+    enabled = local.lb_passthrough
+    type    = "source_ip"
+  }
+
   health_check {
     protocol = "TCP"
   }

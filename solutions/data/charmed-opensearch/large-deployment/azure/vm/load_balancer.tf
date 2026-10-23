@@ -74,6 +74,8 @@ resource "azurerm_lb_rule" "dashboards" {
   frontend_ip_configuration_name = "dashboards"
   backend_address_pool_ids       = [azurerm_lb_backend_address_pool.dashboards[0].id]
   probe_id                       = azurerm_lb_probe.dashboards[0].id
+
+  load_distribution = local.lb_passthrough ? "SourceIP" : "Default"
 }
 
 resource "azurerm_private_dns_zone" "dashboards" {

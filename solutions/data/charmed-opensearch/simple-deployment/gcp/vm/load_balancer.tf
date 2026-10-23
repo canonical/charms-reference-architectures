@@ -112,6 +112,8 @@ resource "google_compute_region_backend_service" "dashboards" {
   health_checks         = [google_compute_region_health_check.dashboards[0].id]
   security_policy       = local.lb_security_policy
 
+  session_affinity = local.lb_passthrough ? "CLIENT_IP" : "NONE"
+
   dynamic "backend" {
     for_each = google_compute_network_endpoint_group.dashboards
 
