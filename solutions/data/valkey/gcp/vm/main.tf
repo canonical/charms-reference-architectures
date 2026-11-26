@@ -27,9 +27,9 @@ module "valkey" {
   risk = var.risk
 
   model = {
-    name       = var.valkey_model
-    cloud      = var.machine_cloud == null ? null : { name = var.machine_cloud }
-    credential = var.machine_credential
+    # Unknown until the model exists, so the product module looks it up only once it is created.
+    name   = juju_model.valkey.uuid == null ? null : terraform_data.valkey_model.input.name
+    create = false
   }
 
   # Juju opens a GCE firewall rule for the opened ports, limited to allowed_cidrs. The server
@@ -39,6 +39,10 @@ module "valkey" {
       certificate-extra-sans = join(",", local.extra_sans)
     }
     expose = var.external_access == null ? [] : [{ cidrs = join(",", var.external_access.allowed_cidrs) }]
+
+    # The application constraint overrides the model's spaces=alpha, so machines start in data.
+    constraints       = var.data_space == null ? null : "spaces=${juju_space.data[0].name}"
+    endpoint_bindings = var.data_space == null ? [] : [{ space = juju_space.data[0].name }]
   }
 
   # The collector subordinate forwards metrics, logs and dashboards to COS Lite over cross-model
@@ -79,5 +83,5 @@ module "ssc" {
 
   channel     = "1/${var.risk}"
   constraints = null
-  model_uuid  = module.valkey.models[var.valkey_model].model_uuid
+  model_uuid  = terraform_data.valkey_model.input.uuid
 }

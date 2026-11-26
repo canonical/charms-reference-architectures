@@ -125,6 +125,22 @@ valkey-cli -h <primary public ip> -p 6380 --tls --cacert ca.pem --user <username
   update `extra_sans` to match.
 - `get-credentials` still reports the private endpoints.
 
+### Binding Valkey to a Juju space
+
+Set `data_space` to keep Valkey's traffic on subnets of your choice. The module moves those subnets
+into a space named `data`, binds every Valkey endpoint to it and gives Valkey the constraint
+`spaces=data`, so each Valkey machine starts with an address in one of them. Valkey replicates,
+runs Sentinel and serves clients on that address. The other applications stay in the default space.
+
+```bash
+terraform apply ... -var 'data_space={cidrs=["10.128.0.0/20"]}'
+```
+
+- Clients need a route to the `data` subnets. Valkey hands every client its `data` address,
+  whatever space the client is bound to.
+- Set `data_space` before the first apply. Setting or removing it later replaces Valkey and
+  deletes its data. Juju also refuses to move a subnet that other applications' machines use.
+
 ### Rotating the key
 
 Increment `gcs_key_version`. With a generated key, the module creates a new key, pushes it to

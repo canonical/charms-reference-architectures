@@ -25,6 +25,6 @@ output "valkey" {
   value = {
     components  = module.valkey.components
     credentials = module.valkey.credentials
-    model_uuid  = module.valkey.models[var.valkey_model].model_uuid
+    model_uuid  = juju_model.valkey.uuid
   }
 }

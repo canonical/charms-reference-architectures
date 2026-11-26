@@ -13,6 +13,22 @@ variable "cos_model" {
   default     = "cos"
 }
 
+variable "data_space" {
+  description = "Subnets for Valkey's data space. The module moves them into a space named data, binds every Valkey endpoint to it and places the Valkey machines in it. Clients need a route to these subnets. null: Valkey stays in the default space."
+  type = object({
+    cidrs = list(string)
+  })
+  default = null
+
+  validation {
+    condition = var.data_space == null || (
+      length(var.data_space.cidrs) > 0 &&
+      alltrue([for c in var.data_space.cidrs : can(cidrhost(c, 0))])
+    )
+    error_message = "data_space.cidrs must hold at least one valid CIDR, such as 10.0.2.0/24."
+  }
+}
+
 variable "external_access" {
   description = "Expose Valkey's TLS ports on the units' public IPs, reachable only from allowed_cidrs. vpc_id is the VPC the controller puts models in: its private subnets are kept out of the Valkey model. extra_sans adds names or IPs, such as those public IPs, to every unit's server certificate. null: not exposed."
   type = object({
