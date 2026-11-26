@@ -24,7 +24,7 @@ into a complete stack. You provide a bucket name, and the module handles the res
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.11  |
-| juju      | >= 2.2.1 |
+| juju      | >= 2.4.1 |
 | google    | >= 6.0   |
 
 The module reads credentials from the environment:

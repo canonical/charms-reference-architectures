@@ -27,7 +27,7 @@ a Kubernetes cloud for COS Lite, and the module handles the rest.
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.11  |
-| juju      | >= 2.2.1 |
+| juju      | >= 2.4.1 |
 | azurerm   | >= 4.0   |
 
 The controller needs a machine cloud for Valkey and a Kubernetes cloud for COS Lite. For example,
