@@ -26,7 +26,7 @@ module handles the rest.
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.11  |
-| juju      | >= 2.2.1 |
+| juju      | >= 2.4.1 |
 | azurerm   | >= 4.0   |
 
 The module reads credentials from the environment:

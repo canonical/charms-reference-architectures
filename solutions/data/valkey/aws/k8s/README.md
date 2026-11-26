@@ -23,7 +23,7 @@ into a complete stack on EKS. You provide a bucket name, and the module handles 
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.11  |
-| juju      | >= 2.2.1 |
+| juju      | >= 2.4.1 |
 | aws       | >= 6.0   |
 
 The module reads credentials from the environment:

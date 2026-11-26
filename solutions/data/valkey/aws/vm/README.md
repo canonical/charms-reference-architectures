@@ -25,7 +25,7 @@ and the module handles the rest.
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.11  |
-| juju      | >= 2.2.1 |
+| juju      | >= 2.4.1 |
 | aws       | >= 6.0   |
 
 The controller needs a machine cloud for Valkey and a Kubernetes cloud for COS Lite. For example,
@@ -115,6 +115,26 @@ valkey-cli -h <primary public ip> -p 6380 --tls --cacert ca.pem --user <username
 - `get-credentials` still reports the private endpoints.
 - Set `external_access` before the first apply. Machines that already run in a private subnet stay
   there.
+
+### Binding Valkey to a Juju space
+
+Set `data_space` to keep Valkey's traffic on subnets of your choice. The module moves those subnets
+into a space named `data`, binds every Valkey endpoint to it and gives Valkey the constraint
+`spaces=data`, so each Valkey machine starts with an address in one of them. Valkey replicates,
+runs Sentinel and serves clients on that address. The other applications stay in the default space.
+
+```bash
+terraform apply ... -var 'data_space={cidrs=["10.0.2.0/24","10.0.3.0/24","10.0.4.0/24"]}'
+```
+
+- Clients need a route to the `data` subnets. Valkey hands every client its `data` address,
+  whatever space the client is bound to.
+- Set `data_space` before the first apply. Setting or removing it later replaces Valkey and
+  deletes its data. Juju also refuses to move a subnet that other applications' machines use.
+- List a subnet in each availability zone. Juju spreads units across zones only where the space
+  has a subnet.
+- With `external_access`, list public subnets only, or the plan fails. Valkey's constraint
+  overrides the model's `spaces=alpha`, so Valkey takes its public IP from a `data` subnet.
 
 ### Rotating the key
 

@@ -20,11 +20,6 @@ output "gcs" {
   }
 }
 
-output "valkey_external_endpoint" {
-  description = "Load balancer address of the Valkey primary (TLS, standalone mode). null without load_balancer."
-  value       = var.load_balancer == null ? null : "${google_compute_address.valkey[0].address}:${module.valkey.credentials.valkey.tls_port}"
-}
-
 output "valkey" {
   description = "Valkey connection details and deployed components. No password: run the data-integrator get-credentials action for one."
   value = {
@@ -32,4 +27,9 @@ output "valkey" {
     credentials = module.valkey.credentials
     model_uuid  = module.valkey.models[var.valkey_model].model_uuid
   }
+}
+
+output "valkey_external_endpoint" {
+  description = "Load balancer address of the Valkey primary (TLS, standalone mode). null without load_balancer."
+  value       = var.load_balancer == null ? null : "${google_compute_address.valkey[0].address}:${module.valkey.credentials.valkey.tls_port}"
 }
