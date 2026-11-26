@@ -39,12 +39,6 @@ variable "azure_storage_account" {
   }
 }
 
-variable "cos_model" {
-  description = "Name of the model created for COS Lite."
-  type        = string
-  default     = "cos"
-}
-
 variable "cos_ingress" {
   description = "Allow allowed_cidrs to reach COS Lite's Traefik on ports 80 and 443 through network_security_group, the NSG in resource_group on the AKS node subnet. List the Valkey machines' outbound IPs, such as their NAT gateway's, so the collector can push, and your own to reach Grafana. null: no rule."
   type = object({
@@ -61,6 +55,12 @@ variable "cos_ingress" {
     )
     error_message = "cos_ingress.allowed_cidrs must hold at least one valid CIDR, such as 203.0.113.4/32."
   }
+}
+
+variable "cos_model" {
+  description = "Name of the model created for COS Lite."
+  type        = string
+  default     = "cos"
 }
 
 variable "excluded_subnets" {

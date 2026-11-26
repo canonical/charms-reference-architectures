@@ -20,11 +20,6 @@ output "s3" {
   }
 }
 
-output "valkey_external_endpoints" {
-  description = "Load balancer addresses of the Valkey primary (TLS, standalone mode), one per subnet. Empty without load_balancer."
-  value       = [for ip in aws_eip.valkey[*].public_ip : "${ip}:${module.valkey.credentials.valkey.tls_port}"]
-}
-
 output "valkey" {
   description = "Valkey connection details and deployed components. No password: run the data-integrator get-credentials action for one."
   value = {
@@ -32,4 +27,9 @@ output "valkey" {
     credentials = module.valkey.credentials
     model_uuid  = module.valkey.models[var.valkey_model].model_uuid
   }
+}
+
+output "valkey_external_endpoints" {
+  description = "Load balancer addresses of the Valkey primary (TLS, standalone mode), one per subnet. Empty without load_balancer."
+  value       = [for ip in aws_eip.valkey[*].public_ip : "${ip}:${module.valkey.credentials.valkey.tls_port}"]
 }
